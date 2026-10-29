@@ -1,0 +1,46 @@
+concept_code,vq_token_id,canonical_name,domain,umls_cui,snomed_sg_code,icd10am_code,achi_code,moh_tosp_code,tosp_table_tier,synonyms
+CONCEPT_DM_T2,VQ_01042,Type 2 Diabetes Mellitus,Condition,C0011860,44054006,E11.9,NONE,NONE,NONE,t2dm|type 2 dm|diabetes mellitus|nidmm|dm on oral hypoglycemics
+CONCEPT_HLD,VQ_01088,Dyslipidemia / Hyperlipidemia,Condition,C0020473,55822004,E78.5,NONE,NONE,NONE,hld|hyperlipidemia|dyslipidaemia|high cholesterol|hypercholesterolemia
+CONCEPT_HTN,VQ_01105,Essential Hypertension,Condition,C0020538,59621000,I10,NONE,NONE,NONE,htn|hypertension|high blood pressure|essential htn
+CONCEPT_CKD,VQ_02019,Chronic Kidney Disease,Condition,C1561643,709044004,N18.3,NONE,NONE,NONE,ckd|chronic kidney disease|chronic renal impairment|diabetic nephropathy|ckd stage 3
+CONCEPT_CAD_IHD,VQ_03011,Coronary Artery Disease / Ischemic Heart Disease,Condition,C0010054,53741008,I25.1,NONE,NONE,NONE,cad|ihd|ischemic heart disease|coronary artery disease|tvd|3vd|lad stenosis|nstemi
+CONCEPT_CAD_CALCIFICATION,VQ_03044,Coronary Artery Calcification (Agatston Elevated),Imaging_Risk,C0553650,129573006,I25.84,NONE,NONE,NONE,agatston score|coronary calcium score|cac score|severe coronary calcification
+CONCEPT_HFrEF,VQ_03102,Heart Failure with Reduced Ejection Fraction,Condition,C2732946,703272007,I50.0,NONE,NONE,NONE,hfref|congestive cardiac failure|ccf|lvef 35%|heart failure
+CONCEPT_OBESITY_ASIAN,VQ_01510,Overweight / Obesity (Asian BMI Threshold),Risk_Factor,C0028754,414916001,E66.9,NONE,NONE,NONE,obese|asian bmi >= 27.5|asian overweight bmi >= 23
+CONCEPT_PCI_STENT,VQ_07112,Percutaneous Coronary Intervention with Stenting,Procedure,C1532328,415070008,Z95.5,38306-00,SD701H,5B,pci to lad|staged pci|drug eluting stent|des to rca|coronary angioplasty with stent
+CONCEPT_CABG,VQ_07145,Coronary Artery Bypass Graft Surgery,Procedure,C0010055,232717009,Z95.1,38497-00,SD808H,6C,cabg|coronary artery bypass graft|lima to lad
+CONCEPT_LAP_CHOLE,VQ_07304,Laparoscopic Cholecystectomy,Procedure,C0162529,45595009,K80.20,30445-00,SF702G,4A,lap chole|laparoscopic cholecystectomy
+CONCEPT_COLONOSCOPY_POLYPECTOMY,VQ_07410,Diagnostic/Therapeutic Colonoscopy with Polypectomy,Procedure,C0200791,73761001,K63.5,32093-00,SF208C,2C,colonoscopy with polypectomy|ogd and colonoscopy|scope polypectomy
+CONCEPT_CATARACT_PHACO,VQ_07512,Phacoemulsification and IOL Implantation,Procedure,C0086543,415089008,H25.9,42702-04,SL805L,4A,phaco iol|cataract surgery|right eye phacoemulsification
+CONCEPT_SGLT2I_THERAPY,VQ_08101,SGLT2 Inhibitor Cardiorenal Protective Therapy,Medication,C4043091,716097000,Z79.899,NONE,NONE,NONE,empagliflozin|dapagliflozin|jardiance|forxiga|synjardy
+CONCEPT_ANTIPLATELET,VQ_08204,Dual or Single Antiplatelet Therapy,Medication,C0032181,372567009,Z79.02,NONE,NONE,NONE,dapt|aspirin and clopidogrel|plavix|ticagrelor|brilinta
+CONCEPT_ECG_AFIB,VQ_09011,Atrial Fibrillation on 12-Lead ECG,Multimodal_ECG,C0004238,49436004,I48.91,NONE,NONE,NONE,atrial fibrillation|afib|irregularly irregular rhythm
+CONCEPT_ECG_LVH,VQ_09025,Left Ventricular Hypertrophy / Strain on ECG,Multimodal_ECG,C0149721,164873001,I51.7,NONE,NONE,NONE,ecg lvh|left ventricular hypertrophy|sokolow-lyon positive
+CONCEPT_ECG_ISCHEMIA,VQ_09042,ST-T Wave Ischemic Changes / Prolonged QTc on ECG,Multimodal_ECG,C0151636,428750005,I24.9,NONE,NONE,NONE,st depression|t wave inversion|prolonged qtc|anterolateral ischemia
+CONCEPT_PGX_HLAB1502_POS,VQ_10001,HLA-B*15:02 Allele Positive (Carbamazepine SJS Risk),Genomics_PGx,C3539880,713651003,Z14.8,NONE,NONE,NONE,hla-b*15:02 positive|hla-b1502 carrier
+CONCEPT_PGX_HLAB5801_POS,VQ_10002,HLA-B*58:01 Allele Positive (Allopurinol SCAR Risk),Genomics_PGx,C3888164,713652005,Z14.8,NONE,NONE,NONE,hla-b*58:01 positive|hla-b5801 carrier
+CONCEPT_PGX_CYP2C19_LOF,VQ_10015,CYP2C19 Loss-of-Function (*2/*3) Poor/Intermediate Metabolizer,Genomics_PGx,C3495569,444156000,Z14.8,NONE,NONE,NONE,cyp2c19 *2/*2|cyp2c19 *2/*3|cyp2c19 poor metabolizer
+CONCEPT_GENOMIC_EGFR_MUT,VQ_10040,EGFR Sensitizing Somatic Mutation (L858R / Exon 19 Del),Genomics_Oncology,C1879971,426964009,C34.9,NONE,NONE,NONE,egfr l858r|egfr exon 19 deletion
+CONCEPT_SDOH_NUTRIGRADE_AB,VQ_11001,Nutri-Grade A/B Low-Sugar Dietary Adherence,SDOH_Policy,C0589120,226234005,Z72.4,NONE,NONE,NONE,nutri-grade a|nutri-grade b|kopi o kosong|teh o kosong|0% sugar
+CONCEPT_SDOH_NUTRIGRADE_CD,VQ_11002,Nutri-Grade C/D High Sugar Beverage Exposure,SDOH_Policy,C0589121,226390009,Z72.4,NONE,NONE,NONE,nutri-grade c|nutri-grade d|sweetened beverages daily|kopi regular
+CONCEPT_POLICY_HEALTHIER_SG,VQ_11010,Healthier SG Preventive Care Plan Enrolled,SDOH_Policy,C0684249,410345004,Z00.0,NONE,NONE,NONE,healthier sg|enrolled gp|health plan completed|screen for life
+CONCEPT_SDOH_SUBSIDY_TIER,VQ_11020,Singapore Subsidy Tier (CHAS Blue/Orange / PG / MG / MediFund),SDOH_Policy,C0557651,424673000,Z59.6,NONE,NONE,NONE,chas blue|chas orange|pioneer generation|merdeka generation|medifund
+CONCEPT_SDOH_HDB_RENTAL,VQ_11030,Public Rental Flat Housing Vulnerability (HDB 1-2 Room),SDOH_Policy,C0260791,160734000,Z59.1,NONE,NONE,NONE,1-room hdb|2-room rental|rental flat|public rental
+CONCEPT_SDOH_FDW_CAREGIVER,VQ_11040,Foreign Domestic Worker (FDW) Caregiver Support,SDOH_Policy,C0425198,133932002,Z74.2,NONE,NONE,NONE,fdw helper|domestic helper|foreign domestic worker
+CONCEPT_SHI_HIV,VQ_15001,HIV / Retroviral Infection (NEHR Sensitive Health Info),SHI_Restricted,C0019693,86406008,B20,NONE,NONE,NONE,hiv positive|human immunodeficiency virus|biktarvy|truvada
+CONCEPT_SHI_PSYCH,VQ_15002,Severe Psychiatric Condition (NEHR Sensitive Health Info),SHI_Restricted,C0025362,74732009,F20.9,NONE,NONE,NONE,schizophrenia|major depressive disorder|bipolar disorder|suicidal ideation|clozapine
+CONCEPT_SHI_SUBSTANCE,VQ_15003,Substance Use / Dependence (NEHR Sensitive Health Info),SHI_Restricted,C0038580,66214007,F19.2,NONE,NONE,NONE,ivdu|heroin dependence|methamphetamine abuse
+CONCEPT_SHI_TOP,VQ_15004,Termination of Pregnancy (NEHR Sensitive Health Info),SHI_Restricted,C0156543,386639001,O04.9,35643-03,SG705U,2A,termination of pregnancy|medical abortion
+CONCEPT_SHI_GENETIC,VQ_15005,Pathogenic Hereditary Genetic Result (NEHR Sensitive Health Info),SHI_Restricted,C0950123,405824009,Z15.01,NONE,NONE,NONE,brca1 pathogenic|brca2 pathogenic|lynch syndrome
+CONCEPT_AMI,VQ_03012,Acute Myocardial Infarction (Generic),Condition,C0027051,57054005,I21.9,NONE,NONE,NONE,acute mi|heart attack
+CONCEPT_AMI_STEMI,VQ_03013,ST-Elevation Myocardial Infarction,Condition,C0155626,401303003,I21.0,NONE,NONE,NONE,stemi|st-elevation mi|st-elevation myocardial infarction
+CONCEPT_AMI_NSTEMI,VQ_03014,Non-ST-Elevation Myocardial Infarction,Condition,C0852707,401314000,I21.4,NONE,NONE,NONE,non-stemi|non st elevation myocardial infarction|type 1 nstemi
+CONCEPT_ACS_UAP,VQ_03015,Unstable Angina Pectoris,Condition,C0002962,22298006,I20.0,NONE,NONE,NONE,unstable angina|uap|crescendo angina
+CONCEPT_AMI_TYPE2_OTHER,VQ_03016,Type 2 Myocardial Infarction (Supply-Demand Mismatch),Condition,C4524817,7181000119102,I21.A1,NONE,NONE,NONE,type 2 mi|type 2 nstemi|demand ischemia
+CONCEPT_PCI_PRIMARY,VQ_07113,Primary Emergent Percutaneous Coronary Intervention,Procedure,C1532328,415070008,Z95.5,38306-00,SD701H,5B,primary pci|emergent pci|urgent pci|p-pci|ppci|door-to-balloon pci
+CONCEPT_PCI_STAGED,VQ_07114,Staged / Deferred Percutaneous Coronary Intervention,Procedure,C1532328,415070008,Z95.5,38306-00,SD701H,5B,plan for staged pci|for staged pci|staged to lad|staged to rca|staged to lcx|staged intervention
+CONCEPT_AMI_PRIMARY,VQ_03017,Primary Myocardial Infarction (Fifth Universal Definition 2026),Condition,C0027051,57054005,I21.9,NONE,NONE,NONE,primary mi|primary myocardial infarction|spontaneous atherothrombotic mi
+CONCEPT_AMI_SECONDARY,VQ_03018,Secondary Myocardial Infarction (Fifth Universal Definition 2026),Condition,C4524817,7181000119102,I21.A1,NONE,NONE,NONE,secondary mi|secondary myocardial infarction
+CONCEPT_AMI_PROCEDURAL,VQ_03019,Procedure-Related Myocardial Infarction (Fifth Universal Definition 2026),Condition,C0155626,703164003,I97.120,NONE,NONE,NONE,procedure-related mi|procedure related myocardial infarction|post pci mi|post cabg mi
+CONCEPT_MYOCARDIAL_INJURY_ACUTE,VQ_03020,Acute Myocardial Injury without Ischemia (Fifth Universal Definition 2026),Condition,C5197825,840544004,I51.89,NONE,NONE,NONE,acute myocardial injury|acute troponin leak without ischemia
+CONCEPT_MYOCARDIAL_INJURY_CHRONIC,VQ_03021,Chronic Myocardial Injury (Fifth Universal Definition 2026),Condition,C5197825,840544004,I51.89,NONE,NONE,NONE,chronic myocardial injury|stable baseline troponin elevation

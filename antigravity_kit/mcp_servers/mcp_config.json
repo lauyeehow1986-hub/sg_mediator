@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "sg-clinical-router-mcp": {
+      "command": "python",
+      "args": [
+        "antigravity_kit/mcp_servers/sg_clinical_router_mcp.py"
+      ],
+      "env": {
+        "PYTHONUTF8": "1",
+        "PYTHONUNBUFFERED": "1",
+        "SG_AUTHORITY_PRIORITY": "MOH_TOSP_HIB,ACE_ACG,SG_SOCIETY,PUBMED,CLINICALTRIALS"
+      }
+    }
+  }
+}

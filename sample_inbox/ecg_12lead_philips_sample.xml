@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RestingECG>
+  <PatientDemographics>
+    <PatientID>PAT001</PatientID>
+  </PatientDemographics>
+  <OrderInfo>
+    <VisitNumber>V102_ECG</VisitNumber>
+    <AcquisitionDate>2026-01-15</AcquisitionDate>
+  </OrderInfo>
+  <GlobalMeasurements>
+    <HeartRate>84</HeartRate>
+    <PRInterval>168</PRInterval>
+    <QRSDuration>96</QRSDuration>
+    <QTCorrected>472</QTCorrected>
+    <InterpretationStatement>Atrial fibrillation with left ventricular hypertrophy and prolonged QTc</InterpretationStatement>
+  </GlobalMeasurements>
+  <Waveform>
+    <LeadID>II</LeadID>
+    <WaveformData>12 18 25 140 220 -45 10 15 20 35 15 8 12 19 240 -50 12 14</WaveformData>
+  </Waveform>
+</RestingECG>

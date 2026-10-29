@@ -1,0 +1,281 @@
+version: "2026.10-SG"
+authority_hierarchy:
+  - "MOH_CIRCULAR_TOSP_HIB"
+  - "ACE_CLINICAL_GUIDANCE_ACG"
+  - "SINGAPORE_SPECIALIST_SOCIETY"
+  - "INTERNATIONAL_PUBMED_ESC_AHA_KDIGO"
+  - "CLINICAL_TRIALS_GOV_SG"
+
+deduplication:
+  shingle_size_words: 8
+  simhash_overlap_threshold: 0.85
+  carried_forward_section_headers:
+    - "bghx"
+    - "pmhx"
+    - "pshx"
+    - "past medical history"
+    - "background history"
+    - "chronic problems"
+
+singapore_shorthand_expansion:
+  "bghx": "background history"
+  "pmhx": "past medical history"
+  "pshx": "past surgical history"
+  "tcu": "to come up follow-up appointment"
+  "fbc": "full blood count"
+  "rp": "renal panel"
+  "lft": "liver function test"
+  "ufeme": "urine microscopic examination"
+  "2de": "transthoracic two-dimensional echocardiogram"
+  "kopi o kosong": "unsweetened black coffee (Nutri-Grade A, 0% sugar)"
+  "teh o kosong": "unsweetened black tea (Nutri-Grade A, 0% sugar)"
+  "kopi regular": "sweetened condensed milk coffee (Nutri-Grade C/D high sugar)"
+  "s/p": "status post"
+  "nric": "national registration identity card"
+  "fdw": "foreign domestic worker caregiver"
+  "chas": "community health assist scheme subsidy"
+  "pg card": "pioneer generation subsidy card"
+  "mg card": "merdeka generation subsidy card"
+
+negation_and_context_triggers:
+  negated_prefixes:
+    - "no "
+    - "nil "
+    - "denies "
+    - "negative for "
+    - "ruled out "
+    - "without evidence of "
+    - "free of "
+  historical_prefixes:
+    - "s/p "
+    - "hx of "
+    - "history of "
+    - "previous "
+    - "past "
+    - "resolved "
+  conditional_prefixes:
+    - "if "
+    - "consider "
+    - "plan for "
+    - "for staged "
+    - "to discuss "
+    - "watch out for "
+
+si_lab_derivation_rules:
+  t2dm_glycemic:
+    hba1c_pct_min: 6.5
+    hba1c_mmol_mol_min: 48.0
+    fasting_glucose_mmol_l_min: 7.0
+    random_glucose_mmol_l_min: 11.1
+    derived_concept_code: "CONCEPT_DM_T2"
+  dyslipidemia_ascvd:
+    ldl_mmol_l_general_min: 3.4
+    ldl_mmol_l_high_risk_min: 1.8
+    ldl_mmol_l_very_high_risk_min: 1.4
+    lpa_nmol_l_high_min: 125.0
+    derived_concept_code: "CONCEPT_HLD"
+  chronic_kidney_disease:
+    egfr_ml_min_max: 60.0
+    uacr_mg_mmol_min: 3.0
+    creatinine_umol_l_high_min: 115.0
+    derived_concept_code: "CONCEPT_CKD"
+  hypertension:
+    sbp_mmhg_min: 140
+    dbp_mmhg_min: 90
+    home_sbp_mmhg_min: 135
+    home_dbp_mmhg_min: 85
+    derived_concept_code: "CONCEPT_HTN"
+  asian_bmi_thresholds:
+    overweight_min: 23.0
+    obese_min: 27.5
+    derived_concept_code: "CONCEPT_OBESITY_ASIAN"
+  coronary_calcium_agatston:
+    mild_min: 1
+    moderate_min: 100
+    severe_min: 300
+    derived_concept_code: "CONCEPT_CAD_CALCIFICATION"
+
+medication_to_risk_inference:
+  "metformin": ["CONCEPT_DM_T2"]
+  "glipizide": ["CONCEPT_DM_T2"]
+  "gliclazide": ["CONCEPT_DM_T2"]
+  "diamicron": ["CONCEPT_DM_T2"]
+  "linagliptin": ["CONCEPT_DM_T2"]
+  "trajenta": ["CONCEPT_DM_T2"]
+  "empagliflozin": ["CONCEPT_DM_T2", "CONCEPT_SGLT2I_THERAPY"]
+  "jardiance": ["CONCEPT_DM_T2", "CONCEPT_SGLT2I_THERAPY"]
+  "synjardy": ["CONCEPT_DM_T2", "CONCEPT_SGLT2I_THERAPY"]
+  "dapagliflozin": ["CONCEPT_DM_T2", "CONCEPT_CKD", "CONCEPT_SGLT2I_THERAPY"]
+  "forxiga": ["CONCEPT_DM_T2", "CONCEPT_CKD", "CONCEPT_SGLT2I_THERAPY"]
+  "atorvastatin": ["CONCEPT_HLD"]
+  "rosuvastatin": ["CONCEPT_HLD"]
+  "crestor": ["CONCEPT_HLD"]
+  "simvastatin": ["CONCEPT_HLD"]
+  "ezetimibe": ["CONCEPT_HLD"]
+  "repatha": ["CONCEPT_HLD"]
+  "leqvio": ["CONCEPT_HLD"]
+  "amlodipine": ["CONCEPT_HTN"]
+  "losartan": ["CONCEPT_HTN"]
+  "valsartan": ["CONCEPT_HTN"]
+  "perindopril": ["CONCEPT_HTN"]
+  "bisoprolol": ["CONCEPT_HTN", "CONCEPT_CAD_IHD"]
+  "entresto": ["CONCEPT_HFrEF"]
+  "sacubitril": ["CONCEPT_HFrEF"]
+  "clopidogrel": ["CONCEPT_CAD_IHD", "CONCEPT_ANTIPLATELET"]
+  "plavix": ["CONCEPT_CAD_IHD", "CONCEPT_ANTIPLATELET"]
+  "ticagrelor": ["CONCEPT_CAD_IHD", "CONCEPT_ANTIPLATELET"]
+  "brilinta": ["CONCEPT_CAD_IHD", "CONCEPT_ANTIPLATELET"]
+  "finerenone": ["CONCEPT_CKD", "CONCEPT_DM_T2"]
+  "kerendia": ["CONCEPT_CKD", "CONCEPT_DM_T2"]
+  "biktarvy": ["CONCEPT_SHI_HIV"]
+  "truvada": ["CONCEPT_SHI_HIV"]
+  "clozapine": ["CONCEPT_SHI_PSYCH"]
+  "risperidone": ["CONCEPT_SHI_PSYCH"]
+
+singapore_policy_and_sdoh_patterns:
+  nutri_grade_protective:
+    patterns: ["nutri-grade a", "nutri-grade b", "kopi o kosong", "teh o kosong", "0% sugar", "no sugar beverages", "healthier choice symbol"]
+    code: "CONCEPT_SDOH_NUTRIGRADE_AB"
+  nutri_grade_high_sugar_risk:
+    patterns: ["nutri-grade c", "nutri-grade d", "sweetened beverages daily", "kopi regular", "bubble tea 100%", "high sugar drink"]
+    code: "CONCEPT_SDOH_NUTRIGRADE_CD"
+  healthier_sg_enrolled:
+    patterns: ["healthier sg", "enrolled gp", "health plan completed", "screen for life"]
+    code: "CONCEPT_POLICY_HEALTHIER_SG"
+  subsidy_chas_pg_mg:
+    patterns: ["chas blue", "chas orange", "pioneer generation", "merdeka generation", "medifund"]
+    code: "CONCEPT_SDOH_SUBSIDY_TIER"
+  housing_rental_vulnerability:
+    patterns: ["1-room hdb", "2-room rental", "rental flat", "public rental"]
+    code: "CONCEPT_SDOH_HDB_RENTAL"
+  caregiver_fdw:
+    patterns: ["fdw helper", "domestic helper", "cared for by helper", "foreign domestic worker"]
+    code: "CONCEPT_SDOH_FDW_CAREGIVER"
+
+genomic_and_pgx_rules:
+  "hla-b*15:02":
+    code: "CONCEPT_PGX_HLAB1502_POS"
+    actionability: "CONTRAINDICATION: Avoid Carbamazepine/Phenytoin (high SJS/TEN risk in Singapore Han Chinese/Malay)."
+  "hla-b*58:01":
+    code: "CONCEPT_PGX_HLAB5801_POS"
+    actionability: "CONTRAINDICATION: Avoid Allopurinol (severe SCAR/SJS risk); consider Febuxostat."
+  "cyp2c19*2":
+    code: "CONCEPT_PGX_CYP2C19_LOF"
+    actionability: "WARNING: Reduced Clopidogrel activation; prefer Ticagrelor or Prasugrel post-PCI."
+  "cyp2c19*3":
+    code: "CONCEPT_PGX_CYP2C19_LOF"
+    actionability: "WARNING: Reduced Clopidogrel activation; prefer Ticagrelor or Prasugrel post-PCI."
+  "egfr l858r":
+    code: "CONCEPT_GENOMIC_EGFR_MUT"
+    actionability: "TARGETABLE: Sensitive to Osimertinib (EGFR TKI)."
+  "egfr exon 19":
+    code: "CONCEPT_GENOMIC_EGFR_MUT"
+    actionability: "TARGETABLE: Sensitive to Osimertinib (EGFR TKI)."
+
+sensitive_health_information_shi:
+  categories:
+    HIV_STD:
+      patterns: ["hiv positive", "human immunodeficiency virus", "art therapy", "biktarvy", "viral load copies", "syphilis reactive", "rpr reactive"]
+      code: "CONCEPT_SHI_HIV"
+    PSYCHIATRIC:
+      patterns: ["schizophrenia", "major depressive disorder", "bipolar disorder", "suicidal ideation", "suicide attempt", "imh admission", "clozapine"]
+      code: "CONCEPT_SHI_PSYCH"
+    SUBSTANCE_ABUSE:
+      patterns: ["ivdu", "heroin dependence", "methamphetamine abuse", "alcohol dependence syndrome", "methadone clinic"]
+      code: "CONCEPT_SHI_SUBSTANCE"
+    REPRODUCTIVE_TOP:
+      patterns: ["termination of pregnancy", "medical abortion"]
+      code: "CONCEPT_SHI_TOP"
+    GENETIC_HEREDITARY:
+      patterns: ["brca1 pathogenic", "brca2 pathogenic", "lynch syndrome", "huntington disease"]
+      code: "CONCEPT_SHI_GENETIC"
+
+cardiology_stratification_rules:
+  universal_definition_ami:
+    temporal_guideline_epochs:
+      fifth_edition_2026:
+        effective_start_date: "2026-08-01"
+        citations:
+          - "J Am Coll Cardiol. 2026;88(11):1314–1368 (DOI: 10.1016/j.jacc.2026.07.025)"
+          - "Circulation. 2026;154"
+          - "Eur Heart J. 2026"
+        sex_specific_urls_ng_l:
+          female: 9.0
+          male: 16.0
+          overall_sex_neutral: 14.0
+        classification_paradigm:
+          primary_mi: "Acute atherothrombosis, plaque rupture/erosion, SCAD, coronary embolism, or vasospasm"
+          secondary_mi: "Acute oxygen supply-demand mismatch in non-coronary illness (sepsis, tachyarrhythmia, severe anemia)"
+          procedural_mi: "Revascularization-related myocardial necrosis occurring within 30 days of PCI or CABG"
+          acute_myocardial_injury: "Dynamic troponin rise/fall > URL without clinical or ECG ischemic features"
+          chronic_myocardial_injury: "Flat troponin > URL (<20% serial delta), common in CKD and diabetic nephropathy"
+      fourth_edition_2018:
+        effective_start_date: "2018-08-01"
+        citations:
+          - "Circulation. 2018;138(20):e618–e651"
+        standard_url_ng_l: 14.0
+        classification_paradigm:
+          type_1: "Spontaneous MI (Plaque rupture)"
+          type_2: "Supply-demand mismatch MI"
+          type_3: "Fatal MI without biomarkers"
+          type_4a_4b_4c: "PCI-related / stent thrombosis / restenosis"
+          type_5: "CABG-related MI"
+    hs_ctn_url_ng_l: 14.0
+    hs_ctn_url_female_ng_l: 9.0
+    hs_ctn_url_male_ng_l: 16.0
+    dynamic_delta_ratio_elevated: 1.20  # >= 20% change if baseline elevated
+    dynamic_delta_ratio_near_url: 1.50  # > 50% change if baseline near URL
+    stemi_triggers:
+      - "stemi"
+      - "st elevation"
+      - "st-segment elevation"
+      - "ste in"
+      - "new lbbb"
+    nstemi_triggers:
+      - "nstemi"
+      - "non-stemi"
+      - "non st elevation mi"
+      - "type 1 nstemi"
+      - "primary nstemi"
+    uap_triggers:
+      - "unstable angina"
+      - "uap"
+      - "crescendo angina"
+    type2_mismatch_triggers:
+      - "type 2 mi"
+      - "type 2 nstemi"
+      - "secondary mi"
+      - "demand ischemia"
+      - "sepsis"
+      - "septic shock"
+      - "tachyarrhythmia"
+      - "severe anemia"
+    procedural_triggers:
+      - "post-pci"
+      - "periprocedural"
+      - "post cabg"
+      - "stent thrombosis"
+      - "in-stent"
+      - "within 30 days of pci"
+      - "procedural mi"
+      - "type 4"
+      - "type 5"
+  pci_staging:
+    staged_triggers:
+      - "staged pci"
+      - "plan for staged"
+      - "for staged pci"
+      - "staged to lad"
+      - "staged to rca"
+      - "staged to lcx"
+      - "staged intervention"
+      - "planned 2nd stage"
+      - "deferred non-culprit"
+    primary_triggers:
+      - "primary pci"
+      - "emergent pci"
+      - "urgent pci"
+      - "p-pci"
+      - "ppci"
+      - "door-to-balloon"
+      - "rescue pci"

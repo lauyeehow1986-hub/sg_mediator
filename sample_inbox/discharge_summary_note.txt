@@ -1,0 +1,8 @@
+Patient_ID: PAT003
+Visit_No: V301
+Visit_Date: 2026-02-12
+ Ward 52 Discharge Summary:
+71M Pioneer Generation card holder admitted for elective right eye phacoemulsification and IOL implantation.
+Background of chronic kidney disease stage 3 (inline eGFR 48 mL/min/1.73m2) and HbA1c 7.1%.
+Genomic testing showed HLA-B*58:01 positive (avoid allopurinol).
+No history of coronary artery disease.

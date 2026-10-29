@@ -1,0 +1,16 @@
+{
+  "SOPClassUID": "1.2.840.10008.5.1.4.1.1.88.33",
+  "Modality": "SR",
+  "TemplateID": "TID_3902",
+  "PatientID": "PAT001",
+  "AccessionNumber": "V102_CT_CAC",
+  "StudyDate": "2026-01-15",
+  "StudyDescription": "Gated Non-Contrast Cardiac CT Coronary Calcium Score",
+  "TotalAgatstonScore": 412.5,
+  "VesselAgatstonScores": {
+    "LM": 12.0,
+    "LAD": 285.5,
+    "LCx": 45.0,
+    "RCA": 70.0
+  }
+}

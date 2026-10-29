@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging / virtual environments
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
+env/
+ENV/
+runtime/
+work_tmp/
+test_out/
+
+# Database files & caches
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite3
+
+# Logs and runtime telemetry
+*.log
+task-*.log
+
+# Sensitive credentials & environment files
+.env
+*.env
+.env.*
+*.pem
+*.key
+*.cert
+*.pfx
+*.p12
+*.token
+*.secret
+
+# IDE and OS artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+test.txt
+
+# Archive bundles
+*.zip
+*.tar.gz
+*.7z

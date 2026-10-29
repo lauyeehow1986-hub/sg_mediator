@@ -1,0 +1,26 @@
+profiles:
+  8gb:
+    description: "Target 8 GB RAM CPU workstation (strictly < 4.2 GB peak RAM)"
+    max_ram_mb: 4200
+    duckdb_memory_limit: "1536MB"
+    duckdb_threads: 2
+    worker_processes: 2
+    max_tasks_per_child: 200
+    omp_num_threads: 1
+    ort_intra_op_num_threads: 1
+    use_mmap_weights: true
+    dicom_lazy_slice_streaming: true
+    enable_tier5_llm_arbitrator: false
+  16gb:
+    description: "Target 16 GB RAM CPU workstation (strictly < 8.5 GB peak RAM)"
+    max_ram_mb: 8500
+    duckdb_memory_limit: "4096MB"
+    duckdb_threads: 4
+    worker_processes: 4
+    max_tasks_per_child: 400
+    omp_num_threads: 2
+    ort_intra_op_num_threads: 2
+    use_mmap_weights: true
+    dicom_lazy_slice_streaming: true
+    enable_tier5_llm_arbitrator: true
+    tier5_gguf_model: "models_onnx_int8/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
