@@ -26,7 +26,7 @@ set "PYTHONUTF8=1"
 set "OMP_NUM_THREADS=1"
 set "ORT_INTRA_OP_NUM_THREADS=1"
 
-echo [SG-MEDIATOR] Running Local Benchmark & Generating Antigravity Reprompt Bundle...
+echo [SG-MEDIATOR] Running Local Benchmark and Generating Antigravity Reprompt Bundle...
 "%PYTHON_EXE%" "%ROOT_DIR%src\benchmark_engine.py" --input-dir "%INPUT_DIR%" --gold-file "%GOLD_FILE%" --output-dir "%BENCH_OUT%" --profile 8gb
 set "EXIT_CODE=%ERRORLEVEL%"
 endlocal & exit /b %EXIT_CODE%
