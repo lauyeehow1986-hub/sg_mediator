@@ -22,14 +22,28 @@ BMI_TEXT_RE = re.compile(r"bmi\s*(?:of|=|:)?\s*(\d{2}(?:\.\d+)?)\s*(?:kg/m2)?", 
 
 
 class ClinicalSieveAndRiskEngine:
-    def __init__(self, rules_yaml_path: Path, semantic_layer: HybridSemanticLayer):
+    def __init__(self, rules_yaml_path: Path, semantic_layer: HybridSemanticLayer, arbitrator: Optional[Any] = None):
         with rules_yaml_path.open("r", encoding="utf-8") as f:
             self.rules = yaml.safe_load(f)
         self.semantic = semantic_layer
+        # Optional Tier-5 local LLM arbitrator (16 GB profile only); None => purely deterministic
+        self.arbitrator = arbitrator
+        self.hedge_cues = self.rules.get("tier5_arbitration", {}).get("hedge_cues", [])
 
-    def _detect_assertion_status(self, sentence_lower: str, match_start: int, temporal_status: str) -> str:
+    def _detect_assertion_status(
+        self, sentence_lower: str, match_start: int, temporal_status: str, concept_hint: str = ""
+    ) -> str:
         window_start = max(0, match_start - 55)
         prefix_window = sentence_lower[window_start:match_start]
+
+        # Tier 5: only hedged mentions are sent to the local LLM; failure falls through to rules
+        if self.arbitrator is not None and getattr(self.arbitrator, "backend", None) and concept_hint:
+            if any(h in prefix_window for h in self.hedge_cues):
+                label = self.arbitrator.arbitrate(sentence_lower, concept_hint)
+                if label in ("AFFIRMED", "NEGATED", "HISTORICAL", "CONDITIONAL"):
+                    return label
+                if label == "UNCERTAIN":
+                    return "CONDITIONAL"
 
         for neg in self.rules["negation_and_context_triggers"]["negated_prefixes"]:
             if neg in prefix_window:
@@ -91,7 +105,7 @@ class ClinicalSieveAndRiskEngine:
                 m_syn = re.search(rf"(?<![a-z0-9]){re.escape(syn)}(?![a-z0-9])", seg_lower)
                 if m_syn:
                     idx = m_syn.start()
-                    assertion = self._detect_assertion_status(seg_lower, idx, t_status)
+                    assertion = self._detect_assertion_status(seg_lower, idx, t_status, concept_hint=syn)
                     _add_concept(c_code, "TEXT_LEXICAL_SIEVE", assertion, prov, seg_text[:140])
 
             # 1B. Match Medication-Derived Risk Factors from text

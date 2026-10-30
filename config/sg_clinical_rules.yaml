@@ -279,3 +279,16 @@ cardiology_stratification_rules:
       - "ppci"
       - "door-to-balloon"
       - "rescue pci"
+
+tier5_arbitration:
+  # Only mentions preceded by one of these hedge cues are sent to the local LLM (16gb profile).
+  hedge_cues:
+    - "?"
+    - "query "
+    - "possible "
+    - "probable "
+    - "likely "
+    - "suspect"
+    - "r/o "
+    - "rule out "
+    - "cannot exclude"

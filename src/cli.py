@@ -15,6 +15,7 @@ from hybrid_semantic_layer import HybridSemanticLayer
 from ingest_multimodal import ingest_folder
 from shi_enclave import SHIEnclaveGate
 from sieve_and_risk import ClinicalSieveAndRiskEngine
+from tier5_llm_arbitrator import Tier5Arbitrator
 
 
 def run_pipeline(
@@ -33,7 +34,9 @@ def run_pipeline(
 
     semantic = HybridSemanticLayer(ontology_path)
     deduplicator = LongitudinalDeduplicator(shingle_size=8, overlap_threshold=0.85)
-    sieve = ClinicalSieveAndRiskEngine(rules_path, semantic)
+    # Tier-5 local LLM arbitrator: 16gb profile only; silently inactive if Ollama/llama-cli is absent
+    arbitrator = Tier5Arbitrator(enabled=(profile == "16gb"), root_dir=root_dir)
+    sieve = ClinicalSieveAndRiskEngine(rules_path, semantic, arbitrator=arbitrator)
     shi_gate = SHIEnclaveGate(output_dir, unlock_shi=unlock_shi, shi_reason=shi_reason)
 
     raw_records = ingest_folder(input_dir)
@@ -142,6 +145,9 @@ def run_pipeline(
         "records_processed": len(raw_records),
         "total_concepts_extracted": len(all_extracted_rows),
         "total_shi_enclave_protected": total_shi_flagged,
+        "tier5_llm_backend": arbitrator.backend,
+        "vq_encoder_backend": semantic.encoder_backend,
+        "tier5_llm_calls": arbitrator.calls,
         "output_csv": str(csv_out_path),
         "output_timelines_jsonl": str(jsonl_out_path),
     }
