@@ -44,3 +44,86 @@ CONCEPT_AMI_SECONDARY,VQ_03018,Secondary Myocardial Infarction (Fifth Universal 
 CONCEPT_AMI_PROCEDURAL,VQ_03019,Procedure-Related Myocardial Infarction (Fifth Universal Definition 2026),Condition,C0155626,703164003,I97.120,NONE,NONE,NONE,procedure-related mi|procedure related myocardial infarction|post pci mi|post cabg mi
 CONCEPT_MYOCARDIAL_INJURY_ACUTE,VQ_03020,Acute Myocardial Injury without Ischemia (Fifth Universal Definition 2026),Condition,C5197825,840544004,I51.89,NONE,NONE,NONE,acute myocardial injury|acute troponin leak without ischemia
 CONCEPT_MYOCARDIAL_INJURY_CHRONIC,VQ_03021,Chronic Myocardial Injury (Fifth Universal Definition 2026),Condition,C5197825,840544004,I51.89,NONE,NONE,NONE,chronic myocardial injury|stable baseline troponin elevation
+CONCEPT_HFpEF,VQ_03103,Heart Failure with Preserved Ejection Fraction,Condition,C2732945,446221000,I50.32,NONE,NONE,NONE,hfpef|diastolic heart failure|preserved lvef heart failure
+CONCEPT_AORTIC_STENOSIS,VQ_03201,Calcific Aortic Valve Stenosis,Condition,C0003507,60573004,I35.0,NONE,NONE,NONE,severe aortic stenosis|calcific as|aortic valve stenosis
+CONCEPT_MITRAL_REGURG,VQ_03202,Mitral Valve Regurgitation,Condition,C0026266,48724000,I34.0,NONE,NONE,NONE,mitral regurgitation|severe mr|mitral insufficiency
+CONCEPT_ATRIAL_FLUTTER,VQ_03210,Typical or Atypical Atrial Flutter,Condition,C0004239,5370000,I48.92,NONE,NONE,NONE,atrial flutter|cavotricuspid isthmus flutter
+CONCEPT_VENTRICULAR_TACHY,VQ_03211,Sustained Ventricular Tachycardia,Condition,C0042514,25569003,I47.2,NONE,NONE,NONE,sustained vt|ventricular tachycardia|monomorphic vt
+CONCEPT_AV_BLOCK_COMPLETE,VQ_03212,Complete Atrioventricular Heart Block,Condition,C0151517,27885002,I44.2,NONE,NONE,NONE,complete heart block|third degree av block|3rd degree heart block
+CONCEPT_PULMONARY_EMBOLISM,VQ_03301,Acute Pulmonary Thromboembolism,Condition,C0034065,59282003,I26.99,NONE,NONE,NONE,pulmonary embolism|saddle pulmonary embolus|submassive pe
+CONCEPT_DVT_LOWER_LIMB,VQ_03302,Lower Extremity Deep Vein Thrombosis,Condition,C0149871,128053003,I80.20,NONE,NONE,NONE,deep vein thrombosis|proximal femoropopliteal dvt|iliofemoral dvt
+CONCEPT_PERIPHERAL_ARTERY_DIS,VQ_03305,Peripheral Arterial Occlusive Disease,Condition,C0085096,840580004,I70.21,NONE,NONE,NONE,peripheral arterial disease|critical limb ischemia|intermittent claudication
+CONCEPT_AORTIC_ANEURYSM_AAA,VQ_03310,Infrarenal Abdominal Aortic Aneurysm,Condition,C0162871,233985008,I71.4,NONE,NONE,NONE,abdominal aortic aneurysm|infrarenal aaa
+CONCEPT_TAVI_TAVR,VQ_07120,Transcatheter Aortic Valve Implantation,Procedure,C2985560,708935005,Z95.2,38488-08,SD715H,7A,tavi|tavr|transcatheter aortic valve implantation
+CONCEPT_PACEMAKER_IMPLANT,VQ_07125,Permanent Dual-Chamber Pacemaker Implantation,Procedure,C0030163,307280005,Z95.0,38353-00,SD705H,4B,permanent pacemaker insertion|ppm implantation|dual chamber pacemaker
+CONCEPT_ICD_IMPLANT,VQ_07126,Implantable Cardioverter-Defibrillator Insertion,Procedure,C0972409,395218007,Z95.810,38384-00,SD708H,5C,aicd implantation|implantable cardioverter defibrillator
+CONCEPT_CATHETER_ABLATION_AF,VQ_07130,Radiofrequency / Cryoballoon Pulmonary Vein Isolation Ablation,Procedure,C0162563,428663009,I48.0,38287-02,SD712H,5C,pulmonary vein isolation|afib catheter ablation|cryoballoon ablation
+CONCEPT_EVAR_AORTA,VQ_07150,Endovascular Aortic Aneurysm Repair,Procedure,C1291529,441871007,Z95.82,33116-00,SD820V,6B,evar|endovascular aneurysm repair
+CONCEPT_AV_FISTULA_CREATION,VQ_07160,Arteriovenous Fistula Creation for Hemodialysis,Procedure,C0190814,174822005,Z49.01,34509-01,SD835V,3B,radiocephalic avf creation|brachiocephalic av fistula surgery
+CONCEPT_OGD_BIOPSY,VQ_07401,Diagnostic Oesophagogastroduodenoscopy with Biopsy,Procedure,C0079304,76009000,K29.70,30473-01,SF201G,1B,oesophagogastroduodenoscopy|diagnostic ogd with clo test|upper gi endoscopy
+CONCEPT_ERCP_SPHINCTEROTOMY,VQ_07420,Endoscopic Retrograde Cholangiopancreatography with Stone Extraction,Procedure,C0008311,386718000,K80.50,30485-00,SF215G,4B,ercp with sphincterotomy|therapeutic ercp biliary stent
+CONCEPT_LAP_INGUINAL_HERNIA,VQ_07310,Laparoscopic Total Extraperitoneal Inguinal Hernia Repair,Procedure,C0740440,449201007,K40.90,30609-02,SF710G,3C,laparoscopic tep hernia repair|laparoscopic inguinal herniorrhaphy
+CONCEPT_HEMICOLLECTOMY,VQ_07320,Laparoscopic Right or Anterior Resection Colectomy,Procedure,C0009274,23968004,C18.9,32006-01,SF740C,6A,laparoscopic right hemicolectomy|laparoscopic anterior resection
+CONCEPT_GERD_ESOPHAGITIS,VQ_04101,Gastroesophageal Reflux Disease with Esophagitis,Condition,C0017168,235595009,K21.0,NONE,NONE,NONE,gastroesophageal reflux disease|gerd|erosive reflux esophagitis
+CONCEPT_PEPTIC_ULCER,VQ_04105,Gastric or Duodenal Peptic Ulcer Disease,Condition,C0030920,13200003,K27.9,NONE,NONE,NONE,peptic ulcer disease|duodenal ulcer|helicobacter pylori gastric ulcer
+CONCEPT_LIVER_CIRRHOSIS,VQ_04110,Decompensated or Compensated Hepatic Cirrhosis,Condition,C0023890,19943007,K74.60,NONE,NONE,NONE,hepatic cirrhosis|liver cirrhosis|child-pugh b cirrhosis
+CONCEPT_MASLD_NAFLD,VQ_04112,Metabolic Dysfunction-Associated Steatotic Liver Disease,Condition,C0400966,197321007,K76.0,NONE,NONE,NONE,masld|nafld|fatty liver disease|steatohepatitis
+CONCEPT_ACUTE_PANCREATITIS,VQ_04120,Acute Biliary or Alcoholic Pancreatitis,Condition,C0001339,197456007,K85.90,NONE,NONE,NONE,acute pancreatitis|necrotizing pancreatitis
+CONCEPT_CHOLEDOCHOLITHIASIS,VQ_04122,Common Bile Duct Calculus / Choledocholithiasis,Condition,C0008350,266474003,K80.50,NONE,NONE,NONE,choledocholithiasis|common bile duct stone|cbd stone
+CONCEPT_ULCERATIVE_COLITIS,VQ_04130,Ulcerative Pancolitis / Proctitis,Condition,C0009324,64766004,K51.90,NONE,NONE,NONE,ulcerative colitis|acute severe ulcerative colitis
+CONCEPT_CROHN_DISEASE,VQ_04131,Crohn Regional Ileocolitis,Condition,C0010346,34000006,K50.90,NONE,NONE,NONE,crohn disease|ileocecal crohn
+CONCEPT_CHRONIC_HEP_B,VQ_04140,Chronic Viral Hepatitis B Infection,Condition,C0524909,61977001,B18.1,NONE,NONE,NONE,chronic hepatitis b|hbsag positive carrier
+CONCEPT_TKR_ARTHROPLASTY,VQ_07601,Total Knee Replacement Arthroplasty,Procedure,C0086511,609588000,M17.11,49518-00,SB710K,5B,total knee replacement|total knee arthroplasty|bilateral tkr
+CONCEPT_THR_ARTHROPLASTY,VQ_07602,Total Hip Replacement Arthroplasty,Procedure,C0040508,52734007,M16.11,49318-00,SB705H,5C,total hip replacement|total hip arthroplasty
+CONCEPT_HIP_HEMIARTHROPLASTY,VQ_07605,Bipolar Cemented Hip Hemiarthroplasty for Neck of Femur Fracture,Procedure,C0187570,47458005,S72.00,47522-00,SB702H,5A,bipolar hip hemiarthroplasty|neck of femur fracture fixation
+CONCEPT_ACL_RECONSTRUCTION,VQ_07610,Arthroscopic Anterior Cruciate Ligament Reconstruction,Procedure,C0187638,302494006,S83.51,49542-00,SB725K,4B,arthroscopic acl reconstruction|hamstring autograft acl
+CONCEPT_LUMBAR_DECOMPRESSION,VQ_07620,Microsurgical Lumbar Laminectomy and Discectomy,Procedure,C0022987,387731002,M51.16,40300-00,SB810S,5B,lumbar microdiscectomy|decompressive lumbar laminectomy
+CONCEPT_CARPAL_TUNNEL_RELEASE,VQ_07625,Open or Endoscopic Carpal Tunnel Decompression,Procedure,C0194808,34969007,G56.00,39331-01,SN702W,2A,carpal tunnel release|median nerve decompression
+CONCEPT_CRANIOTOMY_HEMATOMA,VQ_07640,Craniotomy for Evacuation of Intracranial Hematoma,Procedure,C0194651,59712006,I62.00,39600-00,SN820B,6C,craniotomy clot evacuation|burr hole subdural drainage
+CONCEPT_KNEE_OSTEOARTHRITIS,VQ_04201,Severe Tricompartmental Knee Osteoarthritis,Condition,C0409959,239873007,M17.0,NONE,NONE,NONE,knee osteoarthritis|medial compartment gonarthrosis
+CONCEPT_OSTEOPOROSIS,VQ_04210,Postmenopausal or Senile Osteoporosis,Condition,C0029456,64859006,M81.0,NONE,NONE,NONE,osteoporosis|dexa t-score <= -2.5
+CONCEPT_GOUTY_ARTHRITIS,VQ_04215,Crystal-Proven Acute or Tophaceous Gout,Condition,C0018099,90560007,M10.9,NONE,NONE,NONE,acute gouty arthritis|tophaceous gout|podagra
+CONCEPT_RHEUMATOID_ARTHRITIS,VQ_04220,Seropositive Rheumatoid Arthritis,Condition,C0003873,69896004,M05.9,NONE,NONE,NONE,rheumatoid arthritis|anti-ccp positive ra
+CONCEPT_SLE_LUPUS,VQ_04222,Systemic Lupus Erythematosus,Condition,C0024141,55464009,M32.9,NONE,NONE,NONE,systemic lupus erythematosus|lupus nephritis
+CONCEPT_TURP_PROSTATE,VQ_07701,Transurethral Resection of the Prostate,Procedure,C0040861,90199006,N40.1,37203-00,SU705P,4A,transurethral resection of prostate|bipolar turp
+CONCEPT_URETEROSCOPY_LASER,VQ_07705,Flexible Ureterorenoscopy and Holmium Laser Lithotripsy,Procedure,C0404556,445940008,N20.1,36809-01,SU712U,3C,ureteroscopy laser lithotripsy|furs rirs stone fragmentation
+CONCEPT_ESWL_KIDNEY,VQ_07706,Extracorporeal Shockwave Lithotripsy of Renal Calculus,Procedure,C0023882,61586009,N20.0,36546-00,SU202K,2C,eswl renal stone|extracorporeal shockwave lithotripsy
+CONCEPT_LSCS_CESAREAN,VQ_07720,Lower Segment Caesarean Section Delivery,Procedure,C0007876,11466000,O82,16520-02,SG720C,4B,lower segment caesarean section|elective lscs|emergency cesarean delivery
+CONCEPT_LAP_HYSTERECTOMY,VQ_07725,Total Laparoscopic Hysterectomy,Procedure,C0404999,708877009,D25.9,35653-04,SG735U,5B,total laparoscopic hysterectomy|tlh bso
+CONCEPT_MASTECTOMY_SNB,VQ_07740,Mastectomy or Wide Local Excision with Sentinel Node Biopsy,Procedure,C0024881,69031006,C50.91,31519-00,SA715B,4C,simple mastectomy with sentinel lymph node biopsy|wide local excision breast
+CONCEPT_THYROIDECTOMY,VQ_07745,Total or Hemithyroidectomy,Procedure,C0040138,13619001,E04.2,30306-01,SA730T,4C,total thyroidectomy|right hemithyroidectomy
+CONCEPT_TONSILLECTOMY,VQ_07760,Bilateral Palatine Tonsillectomy,Procedure,C0040425,173422009,J35.01,41789-00,SE705T,3A,bilateral tonsillectomy|adenotonsillectomy
+CONCEPT_FESS_SINUS,VQ_07765,Functional Endoscopic Sinus Surgery,Procedure,C0162666,232461001,J32.9,41737-02,SE718S,4A,functional endoscopic sinus surgery|bilateral fess
+CONCEPT_PARS_PLANA_VITRECTOMY,VQ_07520,Pars Plana Vitrectomy with Endolaser,Procedure,C0042909,75732000,H33.00,42725-00,SL820V,5B,pars plana vitrectomy|ppv membrane peel
+CONCEPT_INTRAVITREAL_ANTIVEGF,VQ_07525,Intravitreal Anti-VEGF Injection (Aflibercept / Faricimab),Procedure,C1278908,397544007,H35.32,42740-03,SL210V,1C,intravitreal anti-vegf injection|intravitreal eylea vabysmo
+CONCEPT_VATS_LOBECTOMY,VQ_07810,Video-Assisted Thoracoscopic Pulmonary Lobectomy,Procedure,C0405606,708951003,C34.1,38438-01,ST720L,6C,vats lobectomy|thoracoscopic lung resection
+CONCEPT_ISCHEMIC_STROKE,VQ_05101,Acute Cerebral Infarction / Ischemic Stroke,Condition,C0948008,422504002,I63.9,NONE,NONE,NONE,acute ischemic stroke|middle cerebral artery infarct|lacunar infarct
+CONCEPT_TIA_TRANSIENT,VQ_05102,Transient Cerebral Ischemic Attack,Condition,C0007787,266257000,G45.9,NONE,NONE,NONE,transient ischemic attack|amaurosis fugax tia
+CONCEPT_INTRACEREBRAL_HEM,VQ_05105,Spontaneous Intracerebral Hemorrhage,Condition,C2937358,274100004,I61.9,NONE,NONE,NONE,intracerebral hemorrhage|basal ganglia bleed
+CONCEPT_PARKINSON_DISEASE,VQ_05120,Idiopathic Parkinson Disease,Condition,C0030567,49049000,G20,NONE,NONE,NONE,parkinson disease|idiopathic parkinsonism
+CONCEPT_ALZHEIMER_DEMENTIA,VQ_05125,Alzheimer or Major Neurocognitive Dementia,Condition,C0002395,26929004,G30.9,NONE,NONE,NONE,alzheimer dementia|vascular neurocognitive disorder
+CONCEPT_EPILEPSY_SEIZURE,VQ_05130,Generalized or Focal Epilepsy,Condition,C0014544,84757009,G40.909,NONE,NONE,NONE,focal epilepsy|generalized tonic-clonic seizure disorder
+CONCEPT_ASTHMA_BRONCHIAL,VQ_05201,Bronchial Asthma,Condition,C0004096,195967001,J45.909,NONE,NONE,NONE,bronchial asthma|acute asthma exacerbation
+CONCEPT_COPD_AIRWAY,VQ_05202,Chronic Obstructive Pulmonary Disease,Condition,C0024117,13645005,J44.9,NONE,NONE,NONE,chronic obstructive pulmonary disease|copd gold group e
+CONCEPT_OSA_SLEEP_APNEA,VQ_05210,Obstructive Sleep Apnea Syndrome,Condition,C0520679,78275009,G47.33,NONE,NONE,NONE,obstructive sleep apnea|severe osa on cpap
+CONCEPT_BRONCHIECTASIS,VQ_05215,Non-Cystic Fibrosis Bronchiectasis,Condition,C0006267,12295008,J47.9,NONE,NONE,NONE,bronchiectasis|bilateral lower lobe bronchiectasis
+CONCEPT_PULMONARY_TB,VQ_05301,Active Pulmonary Mycobacterium Tuberculosis,Condition,C0041327,154283005,A15.0,NONE,NONE,NONE,pulmonary tuberculosis|smear positive ptb
+CONCEPT_DENGUE_FEVER,VQ_05310,Dengue Fever / Dengue Hemorrhagic Fever,Condition,C0011311,38362002,A97.9,NONE,NONE,NONE,dengue fever|ns1 positive dengue|dengue with warning signs
+CONCEPT_MELIOIDOSIS,VQ_05315,Burkholderia Pseudomallei Melioidosis,Condition,C0025219,240370009,A24.1,NONE,NONE,NONE,melioidosis|burkholderia pseudomallei bacteremia
+CONCEPT_SEPSIS_SHOCK,VQ_05320,Severe Sepsis or Septic Shock,Condition,C0243026,91302008,A41.9,NONE,NONE,NONE,septic shock|gram negative urosepsis|bacteremic sepsis
+CONCEPT_ACUTE_PYELONEPHRITIS,VQ_05325,Acute Bacterial Pyelonephritis,Condition,C0085697,36689008,N10,NONE,NONE,NONE,acute pyelonephritis|complicated febrile uti
+CONCEPT_HYPOTHYROIDISM,VQ_05401,Primary Autoimmune or Post-Ablative Hypothyroidism,Condition,C0020676,40930008,E03.9,NONE,NONE,NONE,primary hypothyroidism|hashimoto thyroiditis
+CONCEPT_GRAVES_HYPERTHYROID,VQ_05402,Graves Disease / Thyrotoxicosis,Condition,C0018213,353295004,E05.00,NONE,NONE,NONE,graves hyperthyroidism|overt thyrotoxicosis
+CONCEPT_BPH_PROSTATE,VQ_05501,Benign Prostatic Hyperplasia with LUTS,Condition,C1704272,266569009,N40.1,NONE,NONE,NONE,benign prostatic hyperplasia|prostatomegaly with luts
+CONCEPT_RENAL_CALCULUS,VQ_05505,Nephrolithiasis / Ureteric Calculus,Condition,C0022650,95570007,N20.0,NONE,NONE,NONE,nephrolithiasis|obstructing ureteric stone
+CONCEPT_ESRD_DIALYSIS,VQ_02025,End-Stage Renal Disease on Maintenance Dialysis,Condition,C2316810,46177005,N18.6,NONE,NONE,NONE,end-stage renal disease|esrf on thrice weekly haemodialysis|peritoneal dialysis esrd
+CONCEPT_GLAUCOMA_POAG,VQ_05601,Primary Open-Angle Glaucoma,Condition,C0339573,77075001,H40.11,NONE,NONE,NONE,primary open-angle glaucoma|poag on latanoprost
+CONCEPT_DIABETIC_RETINOPATHY,VQ_05605,Non-Proliferative or Proliferative Diabetic Retinopathy,Condition,C0011884,4855003,E11.319,NONE,NONE,NONE,diabetic retinopathy|proliferative diabetic maculopathy
+CONCEPT_ATOPIC_DERMATITIS,VQ_05701,Moderate-to-Severe Atopic Eczema,Condition,C0011615,24079001,L20.9,NONE,NONE,NONE,atopic dermatitis|flexural atopic eczema
+CONCEPT_PSORIASIS_VULGARIS,VQ_05705,Chronic Plaque Psoriasis,Condition,C0033860,9014002,L40.0,NONE,NONE,NONE,plaque psoriasis|psoriasis vulgaris
+CONCEPT_COLORECTAL_CANCER,VQ_06101,Malignant Colorectal Adenocarcinoma,Condition,C0009402,363406005,C18.9,NONE,NONE,NONE,colorectal adenocarcinoma|sigmoid colon carcinoma
+CONCEPT_HEPATOCELLULAR_CA,VQ_06105,Hepatocellular Carcinoma,Condition,C2239176,109841003,C22.0,NONE,NONE,NONE,hepatocellular carcinoma|multifocal hcc
+CONCEPT_BREAST_CARCINOMA,VQ_06110,Invasive Ductal or Lobular Breast Carcinoma,Condition,C0678222,254837009,C50.919,NONE,NONE,NONE,invasive ductal breast carcinoma|her2 positive breast cancer
+CONCEPT_PROSTATE_CARCINOMA,VQ_06115,Acinar Adenocarcinoma of Prostate,Condition,C0600139,399068003,C61,NONE,NONE,NONE,prostate adenocarcinoma|gleason 7 prostate cancer
+CONCEPT_DOAC_ANTICOAG,VQ_08301,Direct Oral Anticoagulant Therapy (Apixaban / Rivaroxaban / Edoxaban),Medication,C3658285,712778008,Z79.01,NONE,NONE,NONE,apixaban|eliquis|rivaroxaban|xarelto|edoxaban|dabigatran
+CONCEPT_GLP1_RA_THERAPY,VQ_08310,GLP-1 Receptor Agonist Cardiometabolic Therapy (Semaglutide / Dulaglutide),Medication,C1569366,418779001,Z79.85,NONE,NONE,NONE,semaglutide|ozempic|wegovy|dulaglutide|trulicity|liraglutide

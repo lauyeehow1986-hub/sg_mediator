@@ -14,17 +14,19 @@ Execution model:
 """
 import argparse
 import csv
+from datetime import datetime, timezone
+import hashlib
 import json
 import multiprocessing as mp
 import os
 from pathlib import Path
-from typing import Dict, List, Any, Tuple, Iterable
+from typing import Dict, List, Any, Optional, Set, Tuple, Iterable
 
 import yaml
 
 from deduplicator import LongitudinalDeduplicator
 from hybrid_semantic_layer import HybridSemanticLayer
-from ingest_multimodal import ingest_folder
+from ingest_multimodal import ingest_folder, is_supported_clinical_file
 from shi_enclave import SHIEnclaveGate
 from sieve_and_risk import ClinicalSieveAndRiskEngine
 from tier5_llm_arbitrator import Tier5Arbitrator
@@ -171,47 +173,158 @@ def _stream_results_to_staging(
     return total_concepts, total_shi, llm_calls, sorted(worker_pids)
 
 
-def _finalize_duckdb(output_dir: Path, prof: Dict[str, Any], tmp_concepts: Path, tmp_vt: Path) -> Path:
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(65536)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _compute_input_hashes(input_dir: Path) -> Dict[str, str]:
+    hashes: Dict[str, str] = {}
+    for p in sorted(input_dir.iterdir()):
+        if is_supported_clinical_file(p):
+            hashes[p.name] = _sha256_file(p)
+    return hashes
+
+
+def _load_checkpoint_hashes(db_path: Path) -> Optional[Dict[str, str]]:
+    if not db_path.exists():
+        return None
+    import duckdb
+
+    con = duckdb.connect(str(db_path))
+    try:
+        tables = {
+            r[0]
+            for r in con.execute(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema='main'"
+            ).fetchall()
+        }
+        if not {"processed_files", "concepts", "visit_timelines"}.issubset(tables):
+            return None
+        return {
+            str(r[0]): str(r[1])
+            for r in con.execute("SELECT source_file, sha256 FROM processed_files").fetchall()
+        }
+    except Exception:
+        return None
+    finally:
+        con.close()
+
+
+def _finalize_duckdb(
+    output_dir: Path,
+    prof: Dict[str, Any],
+    tmp_concepts: Path,
+    tmp_vt: Path,
+    file_hashes: Dict[str, str],
+    dirty_files: Set[str],
+    stale_prev_files: Set[str],
+    incremental: bool = False,
+    has_new_rows: bool = True,
+) -> Tuple[Path, int]:
     import duckdb
 
     db_path = output_dir / "sg_mediator.duckdb"
-    if db_path.exists():
+    if not incremental and db_path.exists():
         db_path.unlink()
+
     con = duckdb.connect(str(db_path))
-    con.execute(f"PRAGMA memory_limit='{prof['duckdb_memory_limit']}'")
-    con.execute(f"PRAGMA threads={int(prof['duckdb_threads'])}")
-    con.execute(f"CREATE TABLE ontology AS SELECT * FROM read_csv_auto('{(ROOT_DIR / 'config' / 'sg_ontology_seed.csv').as_posix()}')")
+    try:
+        con.execute(f"PRAGMA memory_limit='{prof['duckdb_memory_limit']}'")
+        con.execute(f"PRAGMA threads={int(prof['duckdb_threads'])}")
 
-    cols = ", ".join(f"{c} VARCHAR" for c in CSV_FIELDS)
-    con.execute(f"CREATE TABLE concepts ({cols})")
-    # Bulk load through staged CSV files (row-by-row INSERT is ~100x slower in DuckDB)
-    con.execute(
-        f"INSERT INTO concepts SELECT * FROM read_csv('{tmp_concepts.as_posix()}', header=true, all_varchar=true)"
-    )
-    tmp_concepts.unlink(missing_ok=True)
+        if not incremental:
+            con.execute(
+                f"CREATE TABLE ontology AS SELECT * FROM read_csv_auto('{(ROOT_DIR / 'config' / 'sg_ontology_seed.csv').as_posix()}')"
+            )
+            cols = ", ".join(f"{c} VARCHAR" for c in CSV_FIELDS)
+            con.execute(f"CREATE TABLE concepts ({cols})")
+            con.execute(
+                "CREATE TABLE visit_timelines (patient_id VARCHAR, visit_no VARCHAR, visit_date VARCHAR, "
+                "source_file VARCHAR, modality VARCHAR, care_setting VARCHAR, copy_paste_ratio DOUBLE, "
+                "extracted_concept_count INTEGER, shi_enclave_count INTEGER, vq_token_sequence VARCHAR)"
+            )
+            con.execute(
+                "CREATE TABLE processed_files (source_file VARCHAR, sha256 VARCHAR, processed_at VARCHAR)"
+            )
+            con.execute(
+                "CREATE VIEW patient_problem_list AS SELECT patient_id, concept_code, canonical_name, "
+                "min(visit_date) AS first_seen, max(visit_date) AS last_seen, count(*) AS n_mentions "
+                "FROM concepts WHERE assertion_status='AFFIRMED' GROUP BY patient_id, concept_code, canonical_name"
+            )
+        elif stale_prev_files:
+            placeholders = ", ".join("?" for _ in stale_prev_files)
+            stale_list = sorted(stale_prev_files)
+            con.execute(
+                f"DELETE FROM concepts WHERE (patient_id, visit_no) IN "
+                f"(SELECT patient_id, visit_no FROM visit_timelines WHERE source_file IN ({placeholders}))",
+                stale_list,
+            )
+            con.execute(f"DELETE FROM visit_timelines WHERE source_file IN ({placeholders})", stale_list)
+            con.execute(f"DELETE FROM processed_files WHERE source_file IN ({placeholders})", stale_list)
 
-    con.execute(
-        "CREATE TABLE visit_timelines (patient_id VARCHAR, visit_no VARCHAR, visit_date VARCHAR, "
-        "source_file VARCHAR, modality VARCHAR, care_setting VARCHAR, copy_paste_ratio DOUBLE, "
-        "extracted_concept_count INTEGER, shi_enclave_count INTEGER, vq_token_sequence VARCHAR)"
-    )
-    con.execute(f"INSERT INTO visit_timelines SELECT * FROM read_csv('{tmp_vt.as_posix()}', header=true)")
-    tmp_vt.unlink(missing_ok=True)
+        if has_new_rows and tmp_concepts.exists():
+            con.execute(
+                f"INSERT INTO concepts SELECT * FROM read_csv('{tmp_concepts.as_posix()}', header=true, all_varchar=true)"
+            )
+        tmp_concepts.unlink(missing_ok=True)
 
-    # Longitudinal patient-level view: first/last visit an AFFIRMED concept was seen (de-duplicated problem list)
-    con.execute(
-        "CREATE VIEW patient_problem_list AS SELECT patient_id, concept_code, canonical_name, "
-        "min(visit_date) AS first_seen, max(visit_date) AS last_seen, count(*) AS n_mentions "
-        "FROM concepts WHERE assertion_status='AFFIRMED' GROUP BY patient_id, concept_code, canonical_name"
-    )
+        if has_new_rows and tmp_vt.exists():
+            con.execute(f"INSERT INTO visit_timelines SELECT * FROM read_csv('{tmp_vt.as_posix()}', header=true)")
+        tmp_vt.unlink(missing_ok=True)
 
-    csv_out = output_dir / "sg_mediator_extracted_concepts.csv"
-    con.execute(
-        f"COPY (SELECT * FROM concepts ORDER BY patient_id, visit_date, visit_no) "
-        f"TO '{csv_out.as_posix()}' (HEADER, DELIMITER ',')"
-    )
-    con.close()
-    return csv_out
+        now_iso = datetime.now(timezone.utc).isoformat()
+        to_record = dirty_files if incremental else set(file_hashes.keys())
+        if to_record:
+            rows_pf = [(fn, file_hashes[fn], now_iso) for fn in sorted(to_record) if fn in file_hashes]
+            if rows_pf:
+                con.executemany("INSERT INTO processed_files VALUES (?, ?, ?)", rows_pf)
+
+        csv_out = output_dir / "sg_mediator_extracted_concepts.csv"
+        con.execute(
+            f"COPY (SELECT * FROM concepts ORDER BY patient_id, visit_date, visit_no) "
+            f"TO '{csv_out.as_posix()}' (HEADER, DELIMITER ',')"
+        )
+
+        if incremental:
+            jsonl_out = output_dir / "sg_mediator_visit_timelines.jsonl"
+            vt_rows = con.execute(
+                "SELECT patient_id, visit_no, visit_date, source_file, modality, care_setting, "
+                "copy_paste_ratio, extracted_concept_count, shi_enclave_count, vq_token_sequence "
+                "FROM visit_timelines ORDER BY patient_id, visit_date, visit_no"
+            ).fetchall()
+            with jsonl_out.open("w", encoding="utf-8") as fj:
+                for r in vt_rows:
+                    seq_val = json.loads(r[9]) if r[9] else []
+                    fj.write(
+                        json.dumps(
+                            {
+                                "patient_id": r[0],
+                                "visit_no": r[1],
+                                "visit_date": r[2],
+                                "source_file": r[3],
+                                "modality": r[4],
+                                "care_setting": r[5],
+                                "copy_paste_ratio": r[6],
+                                "extracted_concept_count": r[7],
+                                "shi_enclave_count": r[8],
+                                "vq_token_sequence": seq_val,
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n"
+                    )
+
+        total_db_concepts = int(con.execute("SELECT count(*) FROM concepts").fetchone()[0])
+        return csv_out, total_db_concepts
+    finally:
+        con.close()
 
 
 def run_pipeline(
@@ -220,13 +333,54 @@ def run_pipeline(
     profile: str = "8gb",
     unlock_shi: bool = False,
     shi_reason: str = "",
+    resume: bool = False,
 ) -> Dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     prof = load_profile(profile)
+    prev_omp = os.environ.get("OMP_NUM_THREADS")
+    prev_ort = os.environ.get("ORT_INTRA_OP_NUM_THREADS")
     os.environ["OMP_NUM_THREADS"] = str(prof["omp_num_threads"])
     os.environ["ORT_INTRA_OP_NUM_THREADS"] = str(prof["ort_intra_op_num_threads"])
 
-    raw_records = ingest_folder(input_dir)
+    try:
+        return _run_pipeline_inner(input_dir, output_dir, prof, profile, unlock_shi, shi_reason, resume)
+    finally:
+        if prev_omp is None:
+            os.environ.pop("OMP_NUM_THREADS", None)
+        else:
+            os.environ["OMP_NUM_THREADS"] = prev_omp
+        if prev_ort is None:
+            os.environ.pop("ORT_INTRA_OP_NUM_THREADS", None)
+        else:
+            os.environ["ORT_INTRA_OP_NUM_THREADS"] = prev_ort
+
+
+def _run_pipeline_inner(
+    input_dir: Path,
+    output_dir: Path,
+    prof: Dict[str, Any],
+    profile: str,
+    unlock_shi: bool,
+    shi_reason: str,
+    resume: bool,
+) -> Dict[str, Any]:
+
+    file_hashes = _compute_input_hashes(input_dir)
+    prior_hashes = _load_checkpoint_hashes(output_dir / "sg_mediator.duckdb") if resume else None
+    incremental = prior_hashes is not None
+
+    if incremental and prior_hashes is not None:
+        unchanged_files = {fn for fn, sha in file_hashes.items() if prior_hashes.get(fn) == sha}
+        dirty_files = {fn for fn in file_hashes if fn not in unchanged_files}
+        stale_prev_files = {fn for fn in prior_hashes if fn not in unchanged_files}
+        skipped_cached_files = len(unchanged_files)
+        raw_records = ingest_folder(input_dir, only_files=dirty_files) if dirty_files else []
+    else:
+        dirty_files = set(file_hashes.keys())
+        stale_prev_files = set()
+        skipped_cached_files = 0
+        raw_records = ingest_folder(input_dir)
+
     groups = _group_by_patient(raw_records)
     n_workers = max(1, min(int(prof["worker_processes"]), max(1, len(groups))))
     chunksize = max(1, min(16, len(groups) // (n_workers * 4))) if groups else 1
@@ -234,12 +388,14 @@ def run_pipeline(
 
     tmp_concepts = output_dir / "_concepts_load.tmp.csv"
     tmp_vt = output_dir / "_visits_load.tmp.csv"
-    jsonl_out = output_dir / "sg_mediator_visit_timelines.jsonl"
+    jsonl_out = output_dir / ("_visits_delta.tmp.jsonl" if incremental else "sg_mediator_visit_timelines.jsonl")
     shi_flush = SHIEnclaveGate(output_dir, unlock_shi=unlock_shi, shi_reason=shi_reason)
 
-    if n_workers == 1 or len(groups) <= 1:
+    if not groups:
+        total_concepts_delta, total_shi, llm_calls, worker_pids = 0, 0, 0, []
+    elif n_workers == 1 or len(groups) <= 1:
         _init_worker(*initargs)
-        total_concepts, total_shi, llm_calls, worker_pids = _stream_results_to_staging(
+        total_concepts_delta, total_shi, llm_calls, worker_pids = _stream_results_to_staging(
             (_process_patient(g) for g in groups), tmp_concepts, tmp_vt, jsonl_out, shi_flush
         )
     else:
@@ -250,28 +406,52 @@ def run_pipeline(
             initargs=initargs,
             maxtasksperchild=int(prof["max_tasks_per_child"]),
         ) as pool:
-            total_concepts, total_shi, llm_calls, worker_pids = _stream_results_to_staging(
+            total_concepts_delta, total_shi, llm_calls, worker_pids = _stream_results_to_staging(
                 pool.imap(_process_patient, groups, chunksize=chunksize),
                 tmp_concepts, tmp_vt, jsonl_out, shi_flush,
             )
 
-    csv_out = _finalize_duckdb(output_dir, prof, tmp_concepts, tmp_vt)
+    if incremental:
+        jsonl_out.unlink(missing_ok=True)
+
+    csv_out, total_db_concepts = _finalize_duckdb(
+        output_dir=output_dir,
+        prof=prof,
+        tmp_concepts=tmp_concepts,
+        tmp_vt=tmp_vt,
+        file_hashes=file_hashes,
+        dirty_files=dirty_files,
+        stale_prev_files=stale_prev_files,
+        incremental=incremental,
+        has_new_rows=bool(groups),
+    )
+    final_jsonl = output_dir / "sg_mediator_visit_timelines.jsonl"
+
+    sapbert_dir = ROOT_DIR / "models_onnx_int8" / "sapbert_pubmedbert_int8"
+    if "semantic" in _W:
+        vq_backend = _W["semantic"].encoder_backend
+    elif all((sapbert_dir / fn).exists() for fn in ("model_quantized.onnx", "tokenizer.json", "vq_codebook_16384.npz")):
+        vq_backend = "onnx_int8_sapbert_vq16384"
+    else:
+        vq_backend = "hash_trigram_fallback"
 
     probe = Tier5Arbitrator(enabled=bool(prof.get("enable_tier5_llm_arbitrator")), root_dir=ROOT_DIR)
     summary = {
         "profile": profile,
+        "resume_mode": bool(resume),
+        "skipped_cached_files": skipped_cached_files,
         "worker_processes": n_workers,
         "distinct_worker_pids_observed": len(worker_pids),
         "patients": len(groups),
         "records_processed": len(raw_records),
-        "total_concepts_extracted": total_concepts,
+        "total_concepts_extracted": total_db_concepts if incremental else total_concepts_delta,
         "total_shi_enclave_protected": total_shi,
         "tier5_llm_backend": probe.backend,
         "tier5_llm_calls": llm_calls,
-        "vq_encoder_backend": HybridSemanticLayer(ROOT_DIR / "config" / "sg_ontology_seed.csv").encoder_backend,
+        "vq_encoder_backend": vq_backend,
         "duckdb_memory_limit": prof["duckdb_memory_limit"],
         "output_csv": str(csv_out),
-        "output_timelines_jsonl": str(jsonl_out),
+        "output_timelines_jsonl": str(final_jsonl),
         "output_duckdb": str(output_dir / "sg_mediator.duckdb"),
     }
     (output_dir / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -285,6 +465,7 @@ def main():
     parser.add_argument("--profile", default="8gb", choices=["8gb", "16gb"], help="Hardware RAM ceiling profile")
     parser.add_argument("--unlock-shi", action="store_true", help="Unlock Sensitive Health Information in standard export")
     parser.add_argument("--shi-reason", default="", help="Mandatory audit reason when --unlock-shi is set")
+    parser.add_argument("--resume", action="store_true", help="Skip unchanged files using DuckDB SHA-256 checkpoints")
     args = parser.parse_args()
 
     summary = run_pipeline(
@@ -293,6 +474,7 @@ def main():
         profile=args.profile,
         unlock_shi=args.unlock_shi,
         shi_reason=args.shi_reason,
+        resume=args.resume,
     )
     print(json.dumps(summary, indent=2))
 

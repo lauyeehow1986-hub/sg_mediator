@@ -12,8 +12,97 @@ SG-MEDIATOR Dual-Head Hybrid Semantic Layer:
 import csv
 import hashlib
 from pathlib import Path
-from typing import Dict, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple
+import json
 import numpy as np
+
+
+class OnnxGlinerSpanExtractor:
+    """
+    Optional INT8 ONNX biomedical span extractor (`Ihor/gliner-biomed-bi-small-v1.0`).
+    Looks for `model_quantized.onnx`, `tokenizer.json`, and `gliner_config.json` inside
+    `models_onnx_int8/gliner_biomed_int8/`. Remains cleanly inactive (`.available == False`,
+    zero RAM overhead) when optional weights are not installed.
+    """
+
+    def __init__(self, model_dir: Optional[Path] = None):
+        self.session = None
+        self.tokenizer = None
+        self.config: Dict[str, Any] = {}
+        model_dir = model_dir or (
+            Path(__file__).resolve().parent.parent / "models_onnx_int8" / "gliner_biomed_int8"
+        )
+        model_path = model_dir / "model_quantized.onnx"
+        tok_path = model_dir / "tokenizer.json"
+        cfg_path = model_dir / "gliner_config.json"
+        if not (model_path.exists() and tok_path.exists() and cfg_path.exists()):
+            return
+        try:
+            import os
+            import onnxruntime as ort
+            from tokenizers import Tokenizer
+
+            so = ort.SessionOptions()
+            so.intra_op_num_threads = int(os.environ.get("ORT_INTRA_OP_NUM_THREADS", "2"))
+            so.inter_op_num_threads = 1
+            so.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+            so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            self.session = ort.InferenceSession(str(model_path), so, providers=["CPUExecutionProvider"])
+            self.tokenizer = Tokenizer.from_file(str(tok_path))
+            self.config = json.loads(cfg_path.read_text(encoding="utf-8"))
+        except Exception:
+            self.session = None
+            self.tokenizer = None
+
+    @property
+    def available(self) -> bool:
+        return self.session is not None and self.tokenizer is not None
+
+    def extract_spans(self, text: str) -> List[Tuple[int, int, str]]:
+        if not self.available or not text.strip():
+            return []
+        try:
+            enc = self.tokenizer.encode(text)
+            ids = np.array([enc.ids], dtype=np.int64)
+            mask = np.array([enc.attention_mask], dtype=np.int64)
+            input_names = {i.name for i in self.session.get_inputs()}
+            feeds: Dict[str, Any] = {}
+            if "input_ids" in input_names:
+                feeds["input_ids"] = ids
+            if "attention_mask" in input_names:
+                feeds["attention_mask"] = mask
+            if not feeds:
+                return []
+            outputs = self.session.run(None, feeds)
+            if not outputs or outputs[0] is None:
+                return []
+            logits = np.asarray(outputs[0])
+            # Decode high-confidence token spans using fast offset mapping when bi-encoder head is present
+            offsets = enc.offsets
+            spans: List[Tuple[int, int, str]] = []
+            if logits.ndim >= 2 and len(offsets) == logits.shape[1]:
+                scores = 1.0 / (1.0 + np.exp(-np.clip(logits[0], -20.0, 20.0)))
+                token_hits = np.max(scores, axis=-1) if scores.ndim > 1 else scores
+                in_span = False
+                s_char = 0
+                e_char = 0
+                for tok_idx, sc in enumerate(token_hits):
+                    c0, c1 = offsets[tok_idx]
+                    if c1 <= c0:
+                        continue
+                    if float(sc) >= 0.65:
+                        if not in_span:
+                            s_char = c0
+                            in_span = True
+                        e_char = c1
+                    elif in_span:
+                        spans.append((s_char, e_char, text[s_char:e_char]))
+                        in_span = False
+                if in_span and e_char > s_char:
+                    spans.append((s_char, e_char, text[s_char:e_char]))
+            return spans
+        except Exception:
+            return []
 
 
 class OnnxPhraseEncoder:
@@ -38,7 +127,7 @@ class OnnxPhraseEncoder:
             from tokenizers import Tokenizer
 
             so = ort.SessionOptions()
-            so.intra_op_num_threads = int(os.environ.get("ORT_INTRA_OP_NUM_THREADS", "1"))
+            so.intra_op_num_threads = int(os.environ.get("ORT_INTRA_OP_NUM_THREADS", "2"))
             so.inter_op_num_threads = 1
             so.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
             so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
@@ -57,6 +146,8 @@ class OnnxPhraseEncoder:
                 if "anchor_indices" in cb and "anchor_codes" in cb:
                     for idx, code in zip(cb["anchor_indices"].tolist(), cb["anchor_codes"].tolist()):
                         self.anchor_index_to_code[int(idx)] = str(code)
+            # Pre-warm ONNX CPU execution arena so first live clinical span has deterministic <15 ms latency
+            self.embed_projected("clinical concept encoder warmup")
         except Exception:
             self.session = None
             self.centroids = None
@@ -111,13 +202,15 @@ class HybridSemanticLayer:
         self.codebook_size = codebook_size
         self.dim = dim
         self.concepts_by_code: Dict[str, Dict[str, Any]] = {}
+        self.concept_digit_signatures: Dict[str, set] = {}
         self.synonym_to_code: Dict[str, str] = {}
         self._vq_cache: Dict[str, str] = {}
+        self._anchor_match_cache: Dict[Tuple[str, float], Optional[Tuple[str, float]]] = {}
         self._load_ontology_seed(ontology_csv_path)
-        model_dir = model_dir or (
-            Path(__file__).resolve().parent.parent / "models_onnx_int8" / "sapbert_pubmedbert_int8"
-        )
+        base_models_dir = Path(__file__).resolve().parent.parent / "models_onnx_int8"
+        model_dir = model_dir or (base_models_dir / "sapbert_pubmedbert_int8")
         self.encoder = OnnxPhraseEncoder(model_dir)
+        self.gliner_extractor = OnnxGlinerSpanExtractor(base_models_dir / "gliner_biomed_int8")
         self.encoder_backend = (
             "onnx_int8_sapbert_vq16384" if self.encoder.available else "hash_trigram_fallback"
         )
@@ -134,7 +227,16 @@ class HybridSemanticLayer:
                 self.concepts_by_code[c_code] = row
                 for syn in synonyms:
                     self.synonym_to_code[syn] = c_code
-                self.synonym_to_code[row["canonical_name"].strip().lower()] = c_code
+                canon_low = row["canonical_name"].strip().lower()
+                self.synonym_to_code[canon_low] = c_code
+                # Strip administrative year tags like '(Fifth Universal Definition 2026)' when indexing clinical digits
+                canon_clean = canon_low.split("(")[0].strip()
+                sigs = {
+                    "".join(ch for ch in t if ch.isdigit())
+                    for t in [canon_clean, *synonyms]
+                    if any(ch.isdigit() for ch in t)
+                }
+                self.concept_digit_signatures[c_code] = sigs
 
     def quantize_open_vocab_text(self, phrase: str, known_concept_code: Optional[str] = None) -> str:
         """
@@ -182,6 +284,45 @@ class HybridSemanticLayer:
         tok = f"VQ_{bucket:05d}"
         self._vq_cache[norm] = tok
         return tok
+
+    def match_anchored_concept(
+        self, phrase: str, min_cosine: float = 0.68
+    ) -> Optional[Tuple[str, float]]:
+        """
+        Zero-shot biomedical span linker: projects `phrase` via INT8 SapBERT into the 128-D
+        Voronoi-carved VQ latent space and returns `(concept_code, cosine)` ONLY if its nearest
+        centroid among all K=16,384 centroids is a seeded ontology anchor with `cosine >= min_cosine`.
+        """
+        norm = " ".join(phrase.strip().lower().split())
+        if not norm or not self.encoder.available:
+            return None
+        if norm in self.synonym_to_code:
+            return (self.synonym_to_code[norm], 1.0)
+
+        cache_key = (norm, round(float(min_cosine), 4))
+        if cache_key in self._anchor_match_cache:
+            return self._anchor_match_cache[cache_key]
+        if len(self._anchor_match_cache) >= 16384:
+            self._anchor_match_cache.clear()
+
+        q_res = self.encoder.quantize(norm)
+        result: Optional[Tuple[str, float]] = None
+        if q_res is not None:
+            best_idx, sim = q_res
+            c_code = self.encoder.anchor_index_to_code.get(best_idx)
+            if c_code is not None and sim >= min_cosine:
+                meta = self.concepts_by_code.get(c_code, {})
+                domain = str(meta.get("domain", ""))
+                cand_digits = "".join(ch for ch in norm if ch.isdigit())
+                allowed_digits = self.concept_digit_signatures.get(c_code, set())
+                # Clinical safety guard: never hallucinate PGx/somatic alleles or cross-match conflicting numbers
+                if not domain.startswith("Genomics") and (
+                    not cand_digits or not allowed_digits or cand_digits in allowed_digits
+                ):
+                    result = (c_code, float(sim))
+
+        self._anchor_match_cache[cache_key] = result
+        return result
 
     def resolve_concept(
         self,

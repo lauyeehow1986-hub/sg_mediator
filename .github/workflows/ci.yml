@@ -1,0 +1,57 @@
+name: SG-MEDIATOR CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify-windows-cpu:
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+      OMP_NUM_THREADS: "2"
+      ORT_INTRA_OP_NUM_THREADS: "2"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install duckdb pyyaml pymupdf rapidocr-onnxruntime onnxruntime pydicom lxml numpy scipy rapidfuzz tokenizers psutil pyahocorasick
+
+      - name: Cache INT8 SapBERT ONNX & K=16384 VQ Codebook
+        id: cache-sapbert
+        uses: actions/cache@v4
+        with:
+          path: models_onnx_int8/sapbert_pubmedbert_int8
+          key: sapbert-vq16384-${{ hashFiles('fetch_models.bat', 'scripts/train_vq_codebook.py', 'config/sg_ontology_seed.csv') }}
+
+      - name: Fetch SapBERT & Train K=16384 VQ Codebook (on cache miss)
+        if: steps.cache-sapbert.outputs.cache-hit != 'true'
+        shell: cmd
+        run: call fetch_models.bat
+
+      - name: Run Unit Test Suite (Offline Mode)
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+
+      - name: Run Gold Clinical Benchmark (F1 = 1.0 Gate)
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          PYTHONPATH: src
+        run: |
+          python src/benchmark_engine.py --input-dir sample_inbox --gold-file sample_inbox/gold_labels.csv --output-dir output_benchmark
+          python -c "import json; b=json.load(open('output_benchmark/antigravity_reprompt_bundle.json')); assert b['metrics']['f1_score']==1.0 and b['metrics']['copy_paste_provenance_accuracy']==1.0, b"

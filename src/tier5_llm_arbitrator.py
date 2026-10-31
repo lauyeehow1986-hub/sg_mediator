@@ -18,13 +18,17 @@ zero-shot 10/20 (5 dangerous false negations); Qwen2.5-3B few-shot 18/20 (0 dang
 3B model + few-shot prompt + the negation-evidence guard below. Small synthetic set: treat as a
 smoke test, not clinical validation.
 """
+import argparse
+import hashlib
 import json
 import re
 import subprocess
 import urllib.request
+import zipfile
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
+ALLOWED_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 VALID_LABELS = ("AFFIRMED", "NEGATED", "HISTORICAL", "CONDITIONAL", "UNCERTAIN")
 
 PROMPT_TEMPLATE = (
@@ -63,9 +67,15 @@ class Tier5Arbitrator:
         llama_cli: Optional[Path] = None,
         timeout_s: float = 30.0,
     ):
+        if ollama_host.strip().lower() not in ALLOWED_LOOPBACK_HOSTS:
+            raise ValueError(
+                f"Tier5Arbitrator strictly forbids non-loopback host '{ollama_host}'; "
+                f"allowed: {sorted(ALLOWED_LOOPBACK_HOSTS)}"
+            )
         self.enabled = enabled
         self.root_dir = root_dir or Path(__file__).resolve().parent.parent
-        self.ollama_url = f"http://{ollama_host}:{ollama_port}"
+        host_fmt = f"[{ollama_host}]" if ":" in ollama_host and not ollama_host.startswith("[") else ollama_host
+        self.ollama_url = f"http://{host_fmt}:{ollama_port}"
         self.ollama_model = ollama_model
         self.gguf_path = gguf_path or (self.root_dir / "models_llm" / "Qwen2.5-3B-Instruct-Q4_K_M.gguf")
         self.llama_cli = llama_cli or (self.root_dir / "runtime" / "llama" / "llama-cli.exe")
@@ -141,3 +151,70 @@ class Tier5Arbitrator:
             label = None  # never let the LLM invent a negation; fall back to deterministic rules
         self.cache[key] = label
         return label
+
+
+def pack_tier5_addon_zip(root_dir: Path, out_zip: Path) -> Dict[str, Any]:
+    """
+    Packages optional Tier-5 local LLM binaries (`runtime/llama`, `runtime/ollama`) and quantized
+    weights (`models_llm`) into a standalone `< 2.0 GB` zip add-on that extracts directly over `sg_mediator/`.
+    """
+    candidate_dirs = [
+        root_dir / "runtime" / "llama",
+        root_dir / "runtime" / "ollama",
+        root_dir / "models_llm",
+    ]
+    files_to_pack = []
+    for d in candidate_dirs:
+        if d.exists():
+            for p in sorted(d.rglob("*")):
+                if p.is_file():
+                    files_to_pack.append(p)
+
+    if not files_to_pack:
+        raise FileNotFoundError(
+            "No Tier-5 runtime or LLM weights found under runtime/llama, runtime/ollama, or models_llm. "
+            "Run setup_tier5_llamacli.bat or setup_tier5_ollama.bat first."
+        )
+
+    out_zip.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+        for p in files_to_pack:
+            rel = p.relative_to(root_dir).as_posix()
+            # GGUF quantized tensors are already high-entropy; store >100 MB .gguf/blob files with ZIP_STORED for speed
+            comp = zipfile.ZIP_STORED if p.stat().st_size > 100 * 1024 * 1024 else zipfile.ZIP_DEFLATED
+            zf.write(p, arcname=rel, compress_type=comp)
+
+    h = hashlib.sha256()
+    with out_zip.open("rb") as f:
+        while True:
+            chunk = f.read(1024 * 1024)
+            if not chunk:
+                break
+            h.update(chunk)
+
+    size_bytes = out_zip.stat().st_size
+    return {
+        "addon_zip": str(out_zip),
+        "files_packed": len(files_to_pack),
+        "size_bytes": size_bytes,
+        "size_mb": round(size_bytes / (1024 * 1024), 2),
+        "under_github_2gb_limit": size_bytes < (2 * 1024 * 1024 * 1024),
+        "sha256": h.hexdigest(),
+    }
+
+
+def _main() -> None:
+    parser = argparse.ArgumentParser(description="SG-MEDIATOR Tier-5 Local LLM Utility")
+    parser.add_argument("--pack-addon", action="store_true", help="Build dist/sg_mediator_tier5_llm_addon_x64.zip")
+    parser.add_argument("--out-zip", default="", help="Custom output zip path")
+    args = parser.parse_args()
+
+    root = Path(__file__).resolve().parent.parent
+    if args.pack_addon:
+        target = Path(args.out_zip) if args.out_zip else (root / "dist" / "sg_mediator_tier5_llm_addon_x64.zip")
+        meta = pack_tier5_addon_zip(root, target)
+        print(json.dumps(meta, indent=2))
+
+
+if __name__ == "__main__":
+    _main()

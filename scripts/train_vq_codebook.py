@@ -19,9 +19,10 @@ embeddings) to build a unified K=16,384 spherical vector-quantization codebook:
 """
 import csv
 import os
+import re
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import onnxruntime as ort
@@ -135,17 +136,25 @@ CLINICAL_MODIFIERS = [
     "clinical diagnosis of ",
 ]
 
-def build_broad_corpus() -> List[str]:
+def build_broad_corpus(excluded_terms: Optional[set] = None) -> List[str]:
+    excluded = excluded_terms or set()
     phrases: List[str] = []
     seen = set()
     for items in SPECIALTY_BASES.values():
         for base in items:
             for mod in CLINICAL_MODIFIERS:
                 cand = f"{mod}{base}".strip().lower()
-                if cand not in seen:
+                if cand not in seen and cand not in excluded:
                     seen.add(cand)
                     phrases.append(cand)
     return phrases
+
+
+def _clean_term_for_sapbert(term: str) -> str:
+    """Strips parenthetical administrative tags (e.g. NEHR Sensitive Health Info) before SapBERT encoding."""
+    cleaned = re.sub(r"\s*\([^)]*\)", "", term).strip()
+    cleaned = re.sub(r"\s+on\s+12-lead\s+ecg$", "", cleaned, flags=re.IGNORECASE).strip()
+    return cleaned or term
 
 
 def load_seeded_concepts(ontology_csv: Path) -> List[Tuple[str, int, List[str]]]:
@@ -155,8 +164,12 @@ def load_seeded_concepts(ontology_csv: Path) -> List[Tuple[str, int, List[str]]]
             code = row["concept_code"].strip()
             vq_id = row["vq_token_id"].strip()
             idx = int(vq_id.split("_")[1])
-            terms = [row["canonical_name"].strip().lower()]
-            terms.extend(s.strip().lower() for s in row.get("synonyms", "").split("|") if s.strip())
+            terms = [_clean_term_for_sapbert(row["canonical_name"].strip().lower())]
+            terms.extend(
+                _clean_term_for_sapbert(s.strip().lower())
+                for s in row.get("synonyms", "").split("|")
+                if s.strip()
+            )
             uniq_terms = list(dict.fromkeys(t for t in terms if t))
             seeded.append((code, idx, uniq_terms))
     return seeded
@@ -210,9 +223,9 @@ def train_and_save_codebook(
     sess = ort.InferenceSession(str(model_dir / "model_quantized.onnx"), so, providers=["CPUExecutionProvider"])
     tok = Tokenizer.from_file(str(model_dir / "tokenizer.json"))
 
-    broad_phrases = build_broad_corpus()
     seeded = load_seeded_concepts(ontology_csv)
     seeded_flat = [t for _, _, terms in seeded for t in terms]
+    broad_phrases = build_broad_corpus(set(seeded_flat))
 
     print(f"[VQ Trainer] Encoding {len(broad_phrases)} broad clinical phrases + {len(seeded_flat)} seeded terms with INT8 SapBERT...")
     X_broad = encode_sapbert_cls(sess, tok, broad_phrases, batch_size=64)
@@ -266,18 +279,18 @@ def train_and_save_codebook(
     anchor_mat = np.stack(anchor_protos, axis=0)  # (45, 128)
     anchor_set = set(anchor_indices)
 
-    # 4. Carve clean Voronoi margin (max cosine <= 0.38) on non-anchor slots relative to seeded prototypes
+    # 4. Carve clean Voronoi margin (max cosine <= 0.35) on non-anchor slots relative to all 128 seeded prototypes
     non_anchor_mask = np.array([i not in anchor_set for i in range(codebook_size)], dtype=bool)
-    for _ in range(3):
-        sims = centroids[non_anchor_mask] @ anchor_mat.T  # (N_non, 45)
+    for _ in range(15):
+        sims = centroids[non_anchor_mask] @ anchor_mat.T  # (N_non, N_anchors)
         max_anchor_idx = np.argmax(sims, axis=1)
         max_sim = sims[np.arange(sims.shape[0]), max_anchor_idx]
-        too_close = max_sim > 0.38
+        too_close = max_sim > 0.35
         if not np.any(too_close):
             break
         na_indices = np.flatnonzero(non_anchor_mask)[too_close]
         closest_protos = anchor_mat[max_anchor_idx[too_close]]
-        excess = (max_sim[too_close] - 0.30)[:, None]
+        excess = (max_sim[too_close] - 0.26)[:, None]
         centroids[na_indices] = l2_normalize_rows(centroids[na_indices] - excess * closest_protos)
 
     # 5. Anchor the 45 seeded ontology concepts at their exact canonical VQ_xxxxx slots

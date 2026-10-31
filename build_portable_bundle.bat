@@ -24,7 +24,7 @@ echo [3/4] Extracting Embeddable Python using tar.exe (built into Windows 10/11 
 tar.exe -xf "%ROOT_DIR%runtime\python-3.11.9-embed-amd64.zip" -C "%RUNTIME_PY%"
 
 echo [4/5] Installing offline binary wheels into runtime\python\Lib\site-packages...
-pip install --target "%RUNTIME_PY%\Lib\site-packages" --only-binary=:all: duckdb pyyaml pymupdf rapidocr-onnxruntime onnxruntime pydicom lxml numpy scipy rapidfuzz tokenizers psutil
+pip install --target "%RUNTIME_PY%\Lib\site-packages" --only-binary=:all: duckdb pyyaml pymupdf rapidocr-onnxruntime onnxruntime pydicom lxml numpy scipy rapidfuzz tokenizers psutil pyahocorasick
 
 echo [5/5] Fetching INT8 ONNX SapBERT biomedical weights and building K=16384 VQ codebook...
 call "%ROOT_DIR%fetch_models.bat"

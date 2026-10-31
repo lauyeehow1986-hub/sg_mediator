@@ -7,6 +7,8 @@ import hashlib
 import re
 from typing import Dict, List, Tuple, Any
 
+from section_parser import parse_clinical_sections
+
 WORD_RE = re.compile(r"[a-z0-9/\*\.]+")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[\.\!\?;\n])\s+")
 RELATIVE_TIME_RE = re.compile(
@@ -76,6 +78,13 @@ class LongitudinalDeduplicator:
 
         prior_entries = self.patient_history_index.setdefault(patient_id, [])
         raw_segments = [s.strip() for s in SENTENCE_SPLIT_RE.split(raw_text) if s.strip()]
+        parsed_sections = parse_clinical_sections(raw_text)
+
+        def _locate_section_type(seg_str: str) -> str:
+            for blk in parsed_sections:
+                if seg_str in blk["text"]:
+                    return blk["section_type"]
+            return "GENERAL"
 
         processed_segments = []
         novel_parts = []
@@ -111,6 +120,7 @@ class LongitudinalDeduplicator:
             processed_segments.append(
                 {
                     "text": seg,
+                    "section_type": _locate_section_type(seg),
                     "provenance": provenance,
                     "origin_visit_no": origin_visit_no,
                     "origin_visit_date": origin_visit_date,

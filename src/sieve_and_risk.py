@@ -8,8 +8,20 @@ import re
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 import yaml
+from rapidfuzz import fuzz
 
 from hybrid_semantic_layer import HybridSemanticLayer
+
+WORD_SPAN_RE = re.compile(r"[a-z0-9*./+\-]+")
+CLAUSE_SPLIT_RE = re.compile(
+    r"(?:[.;:()\[\],\n]+|\b(?:and|or|but|with|without|denies|no\s+history\s+of|no\s+evidence\s+of|"
+    r"ruled\s+out|negative\s+for|admitted\s+for|admitted\s+with|referred\s+with|referred\s+for|"
+    r"presenting\s+with|diagnosed\s+with|background\s+of|history\s+of|past\s+history\s+of|"
+    r"secondary\s+to|due\s+to)\b)"
+)
+NUMERIC_UNIT_SKIP_RE = re.compile(r"(?:\b\d+(?:\.\d+)?\s*(?:%|mmol|mg|bpm|ms|mmhg|kg/m2)\b|=)")
+LEADING_STOP_RE = re.compile(r"^(?:the|a|an|for|of|in|on|at|to)\s+")
+TRAILING_STOP_RE = re.compile(r"\s+(?:today|daily|yesterday|noted|seen)$")
 
 AGATSTON_TEXT_RE = re.compile(
     r"(?:agatston|coronary\s+calcium|cac)\s*(?:score)?\s*(?:of|=|:)?\s*(\d{1,5}(?:\.\d+)?)",
@@ -22,7 +34,13 @@ BMI_TEXT_RE = re.compile(r"bmi\s*(?:of|=|:)?\s*(\d{2}(?:\.\d+)?)\s*(?:kg/m2)?", 
 
 
 class ClinicalSieveAndRiskEngine:
-    def __init__(self, rules_yaml_path: Path, semantic_layer: HybridSemanticLayer, arbitrator: Optional[Any] = None):
+    def __init__(
+        self,
+        rules_yaml_path: Path,
+        semantic_layer: HybridSemanticLayer,
+        arbitrator: Optional[Any] = None,
+        gliner_extractor: Optional[Any] = None,
+    ):
         with rules_yaml_path.open("r", encoding="utf-8") as f:
             self.rules = yaml.safe_load(f)
         self.semantic = semantic_layer
@@ -31,14 +49,66 @@ class ClinicalSieveAndRiskEngine:
             syn: re.compile(rf"(?<![a-z0-9]){re.escape(syn)}(?![a-z0-9])")
             for syn in self.semantic.synonym_to_code
         }
+        self._ac_automaton: Optional[Any] = None
+        try:
+            import ahocorasick  # type: ignore
+
+            auto = ahocorasick.Automaton()
+            for syn, c_code in self.semantic.synonym_to_code.items():
+                if syn:
+                    auto.add_word(syn, (syn, c_code))
+            auto.make_automaton()
+            self._ac_automaton = auto
+        except Exception:
+            self._ac_automaton = None
         self._sdoh_compiled: List[Tuple[str, Any, str]] = [
             (pat.lower(), re.compile(rf"(?<![a-z0-9]){re.escape(pat.lower())}(?![a-z0-9])"), group_cfg["code"])
             for group_cfg in self.rules.get("singapore_policy_and_sdoh_patterns", {}).values()
             for pat in group_cfg.get("patterns", [])
         ]
+        # Pre-index multi-character clinical terms by word count for Tier-2.5A RapidFuzz OCR typo recovery
+        self._fuzzy_by_wc: Dict[int, List[Tuple[str, str, str]]] = {}
+        for syn, c_code in self.semantic.synonym_to_code.items():
+            if len(syn) < 8:
+                continue
+            wc = len(syn.split())
+            if 1 <= wc <= 5:
+                syn_digits = "".join(ch for ch in syn if ch.isdigit())
+                self._fuzzy_by_wc.setdefault(wc, []).append((syn, syn_digits, c_code))
+        self._fuzzy_cache: Dict[str, Optional[Tuple[str, str, float]]] = {}
+        self.gliner_extractor = (
+            gliner_extractor
+            if gliner_extractor is not None
+            else getattr(self.semantic, "gliner_extractor", None)
+        )
         # Optional Tier-5 local LLM arbitrator (16 GB profile only); None => purely deterministic
         self.arbitrator = arbitrator
         self.hedge_cues = self.rules.get("tier5_arbitration", {}).get("hedge_cues", [])
+
+    def _match_fuzzy_ocr_term(self, cand: str, wc: int) -> Optional[Tuple[str, str, float]]:
+        if cand in self._fuzzy_cache:
+            return self._fuzzy_cache[cand]
+        if len(self._fuzzy_cache) >= 16384:
+            self._fuzzy_cache.clear()
+        pool = self._fuzzy_by_wc.get(wc)
+        if not pool:
+            self._fuzzy_cache[cand] = None
+            return None
+        cand_digits = "".join(ch for ch in cand if ch.isdigit())
+        c0 = cand[0]
+        c_len = len(cand)
+        best: Optional[Tuple[str, str, float]] = None
+        best_score = 88.5
+        for syn, syn_digits, c_code in pool:
+            # Strict digit-preservation guard: never conflate Type 1 vs Type 2 or HLA-B*15:02 vs 15:09
+            if syn_digits != cand_digits or syn[0] != c0 or abs(len(syn) - c_len) > 3:
+                continue
+            sc = fuzz.ratio(cand, syn, score_cutoff=best_score)
+            if sc >= best_score:
+                best_score = float(sc)
+                best = (c_code, syn, best_score)
+        self._fuzzy_cache[cand] = best
+        return best
 
     def _detect_assertion_status(
         self, sentence_lower: str, match_start: int, temporal_status: str, concept_hint: str = ""
@@ -101,32 +171,58 @@ class ClinicalSieveAndRiskEngine:
                 extra_metadata=extra,
             )
 
+        def _overlaps(s: int, e: int, spans: List[Tuple[int, int]]) -> bool:
+            for a, b in spans:
+                if max(s, a) < min(e, b):
+                    return True
+            return False
+
         # ------------------------------------------------------------------
-        # TIER 1 & 2: Lexical Synonym Sieve + ConText Assertion over Segments
+        # TIER 1, 2 & 2.5: Lexical + RapidFuzz OCR + SapBERT/GLiNER Span Sieve
         # ------------------------------------------------------------------
         for seg_info in dedup_result.get("segments", []):
             seg_text = seg_info["text"]
             seg_lower = seg_text.lower()
             prov = seg_info["provenance"]
             t_status = seg_info["temporal_status"]
+            covered_intervals: List[Tuple[int, int]] = []
 
-            # 1A. Match ontology synonyms (fast C-level substring gate before boundary regex)
-            for syn, c_code in self.semantic.synonym_to_code.items():
-                if syn not in seg_lower:
-                    continue
-                pat = self._syn_re.get(syn)
-                if pat is None:
-                    pat = self._syn_re[syn] = re.compile(rf"(?<![a-z0-9]){re.escape(syn)}(?![a-z0-9])")
-                m_syn = pat.search(seg_lower)
-                if m_syn:
-                    idx = m_syn.start()
+            # 1A. Match ontology synonyms via C-level Aho-Corasick automaton (single pass O(N)), with regex fallback
+            if self._ac_automaton is not None:
+                n_seg = len(seg_lower)
+                for end_incl, (syn, c_code) in self._ac_automaton.iter(seg_lower):
+                    idx = end_incl - len(syn) + 1
+                    end_excl = end_incl + 1
+                    if idx > 0:
+                        prev_c = seg_lower[idx - 1]
+                        if ("a" <= prev_c <= "z") or ("0" <= prev_c <= "9"):
+                            continue
+                    if end_excl < n_seg:
+                        next_c = seg_lower[end_excl]
+                        if ("a" <= next_c <= "z") or ("0" <= next_c <= "9"):
+                            continue
+                    covered_intervals.append((idx, end_excl))
                     assertion = self._detect_assertion_status(seg_lower, idx, t_status, concept_hint=syn)
                     _add_concept(c_code, "TEXT_LEXICAL_SIEVE", assertion, prov, seg_text[:140])
+            else:
+                for syn, c_code in self.semantic.synonym_to_code.items():
+                    if syn not in seg_lower:
+                        continue
+                    pat = self._syn_re.get(syn)
+                    if pat is None:
+                        pat = self._syn_re[syn] = re.compile(rf"(?<![a-z0-9]){re.escape(syn)}(?![a-z0-9])")
+                    m_syn = pat.search(seg_lower)
+                    if m_syn:
+                        idx = m_syn.start()
+                        covered_intervals.append((idx, m_syn.end()))
+                        assertion = self._detect_assertion_status(seg_lower, idx, t_status, concept_hint=syn)
+                        _add_concept(c_code, "TEXT_LEXICAL_SIEVE", assertion, prov, seg_text[:140])
 
             # 1B. Match Medication-Derived Risk Factors from text
             for med_name, target_codes in self.rules.get("medication_to_risk_inference", {}).items():
                 idx = seg_lower.find(med_name)
                 if idx != -1:
+                    covered_intervals.append((idx, idx + len(med_name)))
                     assertion = self._detect_assertion_status(seg_lower, idx, t_status)
                     if assertion != "NEGATED":
                         for tc in target_codes:
@@ -145,6 +241,7 @@ class ClinicalSieveAndRiskEngine:
                 m_pat = pat_re.search(seg_lower)
                 if m_pat:
                     idx = m_pat.start()
+                    covered_intervals.append((idx, m_pat.end()))
                     assertion = self._detect_assertion_status(seg_lower, idx, t_status)
                     _add_concept(s_code, "SG_POLICY_SDOH_SIEVE", assertion, prov, seg_text[:140])
 
@@ -152,6 +249,7 @@ class ClinicalSieveAndRiskEngine:
             for variant_pat, var_cfg in self.rules.get("genomic_and_pgx_rules", {}).items():
                 idx = seg_lower.find(variant_pat)
                 if idx != -1:
+                    covered_intervals.append((idx, idx + len(variant_pat)))
                     assertion = self._detect_assertion_status(seg_lower, idx, t_status)
                     _add_concept(
                         var_cfg["code"],
@@ -167,9 +265,92 @@ class ClinicalSieveAndRiskEngine:
                 for pat in shi_cfg.get("patterns", []):
                     idx = seg_lower.find(pat)
                     if idx != -1:
+                        covered_intervals.append((idx, idx + len(pat)))
                         assertion = self._detect_assertion_status(seg_lower, idx, t_status)
                         if assertion != "NEGATED":
                             _add_concept(shi_cfg["code"], "SHI_DETECTOR", assertion, prov, seg_text[:140])
+
+            # 2.5A. RapidFuzz OCR Typo Recovery over uncovered multi-character n-grams
+            words = [(m.start(), m.end(), m.group(0)) for m in WORD_SPAN_RE.finditer(seg_lower)]
+            n_words = len(words)
+            for wc in (5, 4, 3, 2, 1):
+                if wc > n_words or wc not in self._fuzzy_by_wc:
+                    continue
+                for i in range(n_words - wc + 1):
+                    w_start = words[i][0]
+                    w_end = words[i + wc - 1][1]
+                    if _overlaps(w_start, w_end, covered_intervals):
+                        continue
+                    # Do not bridge across sentence, colon, or clause punctuation
+                    if wc > 1 and any(
+                        ch in seg_lower[words[i][1] : words[i + wc - 1][0]] for ch in ".;:,\n()"
+                    ):
+                        continue
+                    cand = seg_lower[w_start:w_end]
+                    if len(cand) < 8 or cand in self.semantic.synonym_to_code:
+                        continue
+                    fuzzy_hit = self._match_fuzzy_ocr_term(cand, wc)
+                    if fuzzy_hit is not None:
+                        f_code, f_syn, _f_score = fuzzy_hit
+                        covered_intervals.append((w_start, w_end))
+                        assertion = self._detect_assertion_status(seg_lower, w_start, t_status, concept_hint=f_syn)
+                        _add_concept(f_code, "TIER25_RAPIDFUZZ_OCR", assertion, prov, seg_text[:140])
+
+            # 2.5B. Optional GLiNER-BioMed INT8 ONNX Span Extractor + Calibrated SapBERT Linker
+            if self.gliner_extractor is not None and getattr(self.gliner_extractor, "available", False):
+                for g_start, g_end, g_span in self.gliner_extractor.extract_spans(seg_text):
+                    if _overlaps(g_start, g_end, covered_intervals):
+                        continue
+                    hit = self.semantic.match_anchored_concept(g_span, min_cosine=0.68)
+                    if hit is not None:
+                        g_code, _g_sim = hit
+                        covered_intervals.append((g_start, g_end))
+                        assertion = self._detect_assertion_status(
+                            seg_lower, g_start, t_status, concept_hint=g_span.lower()
+                        )
+                        _add_concept(g_code, "TIER25_GLINER_SAPBERT", assertion, prov, seg_text[:140])
+
+            # 2.5C. Zero-Shot Clinical Candidate Span Chunker + SapBERT Anchored-Centroid Linker
+            if self.semantic.encoder.available:
+                pos = 0
+                raw_clauses: List[Tuple[int, int]] = []
+                for m_cl in CLAUSE_SPLIT_RE.finditer(seg_lower):
+                    if m_cl.start() > pos:
+                        raw_clauses.append((pos, m_cl.start()))
+                    pos = m_cl.end()
+                if pos < len(seg_lower):
+                    raw_clauses.append((pos, len(seg_lower)))
+
+                for c_start, c_end in raw_clauses:
+                    sub = seg_lower[c_start:c_end]
+                    l_strip = len(sub) - len(sub.lstrip())
+                    r_strip = len(sub) - len(sub.rstrip())
+                    s_start = c_start + l_strip
+                    s_end = c_end - r_strip
+                    if s_end - s_start < 12 or _overlaps(s_start, s_end, covered_intervals):
+                        continue
+                    span_clean = seg_lower[s_start:s_end]
+                    m_lead = LEADING_STOP_RE.match(span_clean)
+                    if m_lead:
+                        s_start += m_lead.end()
+                        span_clean = seg_lower[s_start:s_end]
+                    m_trail = TRAILING_STOP_RE.search(span_clean)
+                    if m_trail:
+                        s_end = s_start + m_trail.start()
+                        span_clean = seg_lower[s_start:s_end]
+                    if len(span_clean) < 12 or _overlaps(s_start, s_end, covered_intervals):
+                        continue
+                    span_words = span_clean.split()
+                    if not (2 <= len(span_words) <= 8) or NUMERIC_UNIT_SKIP_RE.search(span_clean):
+                        continue
+                    hit = self.semantic.match_anchored_concept(span_clean, min_cosine=0.68)
+                    if hit is not None:
+                        z_code, _z_sim = hit
+                        covered_intervals.append((s_start, s_end))
+                        assertion = self._detect_assertion_status(
+                            seg_lower, s_start, t_status, concept_hint=span_clean
+                        )
+                        _add_concept(z_code, "TIER25_SAPBERT_SPAN", assertion, prov, seg_text[:140])
 
             # 1F. Inline Numeric Biomarkers in Free Text (Agatston, HbA1c, LDL, eGFR, Asian BMI)
             m_cac = AGATSTON_TEXT_RE.search(seg_text)

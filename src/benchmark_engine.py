@@ -7,6 +7,7 @@ Evaluates SG-MEDIATOR outputs against a local gold_labels.csv file and emits:
 """
 import argparse
 import csv
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -14,13 +15,40 @@ from typing import Dict, List, Set, Tuple, Any
 
 from cli import run_pipeline
 
-SG_NRIC_RE = re.compile(r"\b[SFTGM]\d{7}[A-Z]\b", re.IGNORECASE)
+EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")
+SG_NRIC_RE = re.compile(r"\b[STFGM]\d{7}[A-Z]\b", re.IGNORECASE)
+SG_MCR_RE = re.compile(r"\bM\d{5}[A-Z]\b")
+DATE_ISO_RE = re.compile(r"\b(?:19|20)\d{2}-\d{2}-\d{2}\b")
+DATE_SLASH_RE = re.compile(r"\b\d{1,2}/\d{1,2}/(?:19|20)\d{2}\b")
+DATE_NAMED_RE = re.compile(
+    r"\b\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+(?:19|20)\d{2}\b",
+    re.IGNORECASE,
+)
+SG_POSTAL_RE = re.compile(
+    r"(?:\bSingapore\s+|\bS\s*\(\s*|\bPostal(?:\s+Code)?\s*[:#]?\s*)\d{6}\)?",
+    re.IGNORECASE,
+)
+SG_PHONE_RE = re.compile(r"(?:\+65[\s\-]*)?\b[689]\d{3}[\s\-]?\d{4}\b")
+
+
+def anonymize_patient_id(patient_id: str) -> str:
+    """Deterministic keyed blake2b pseudonymization (independent of PYTHONHASHSEED)."""
+    digest = hashlib.blake2b(
+        str(patient_id).strip().encode("utf-8"), key=b"SG_MEDIATOR_ANON_KEY_V1", digest_size=4
+    ).hexdigest()
+    return f"ANON_{digest}"
 
 
 def scrub_phi_text(text: str) -> str:
-    """Masks Singapore NRIC/FIN numbers and potential phone numbers before exporting to Antigravity."""
-    scrubbed = SG_NRIC_RE.sub("[REDACTED_SG_NRIC]", text)
-    scrubbed = re.sub(r"\b[689]\d{7}\b", "[REDACTED_SG_PHONE]", scrubbed)
+    """Masks Singapore NRIC/FIN, SMC MCR IDs, postal codes, phone numbers, dates, and emails."""
+    scrubbed = EMAIL_RE.sub("[REDACTED_EMAIL]", text)
+    scrubbed = SG_NRIC_RE.sub("[REDACTED_SG_NRIC]", scrubbed)
+    scrubbed = SG_MCR_RE.sub("[REDACTED_SG_MCR]", scrubbed)
+    scrubbed = DATE_ISO_RE.sub("[REDACTED_DATE]", scrubbed)
+    scrubbed = DATE_SLASH_RE.sub("[REDACTED_DATE]", scrubbed)
+    scrubbed = DATE_NAMED_RE.sub("[REDACTED_DATE]", scrubbed)
+    scrubbed = SG_POSTAL_RE.sub("[REDACTED_SG_POSTAL]", scrubbed)
+    scrubbed = SG_PHONE_RE.sub("[REDACTED_SG_PHONE]", scrubbed)
     return scrubbed
 
 
@@ -82,7 +110,7 @@ def evaluate_benchmark(
                     discrepancies.append(
                         {
                             "error_type": "PROVENANCE_COPY_PASTE_MISMATCH",
-                            "patient_id_masked": f"ANON_{hash(p_id) % 10000:04d}",
+                            "patient_id_masked": anonymize_patient_id(p_id),
                             "visit_no": v_no,
                             "concept_code": c_code,
                             "expected_provenance": exp_prov,
@@ -95,7 +123,7 @@ def evaluate_benchmark(
             discrepancies.append(
                 {
                     "error_type": "FALSE_NEGATIVE_OR_ASSERTION_MISMATCH",
-                    "patient_id_masked": f"ANON_{hash(p_id) % 10000:04d}",
+                    "patient_id_masked": anonymize_patient_id(p_id),
                     "visit_no": v_no,
                     "concept_code": c_code,
                     "expected_assertion": exp_assertion,
@@ -115,7 +143,7 @@ def evaluate_benchmark(
                 discrepancies.append(
                     {
                         "error_type": "FALSE_POSITIVE",
-                        "patient_id_masked": f"ANON_{hash(p_id) % 10000:04d}",
+                        "patient_id_masked": anonymize_patient_id(p_id),
                         "visit_no": v_no,
                         "concept_code": c_code,
                         "predicted_source": pred.get("evidence_source", ""),
