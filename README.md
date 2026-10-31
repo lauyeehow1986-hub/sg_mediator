@@ -19,6 +19,10 @@ SG-MEDIATOR is a zero-admin, zero-PowerShell, 100% offline-capable multimodal cl
    - Resolves hedged clinical mentions (`?NSTEMI`, `r/o ACS`, `likely`, `suspect`) via loopback Ollama (`127.0.0.1:11434`, `qwen2.5:3b-instruct-q4_K_M`, `OLLAMA_NUM_PARALLEL=1`) or zero-socket `llama-cli.exe` (`setup_tier5_llamacli.bat`) with a 6-shot clinical prompt, strict loopback host enforcement, and lexical negation-evidence guard (`pack_tier5_addon.bat` builds an optional `< 2.0 GB` add-on zip).
 5. **Resumable DuckDB Streaming + Hardened SG PHI Scrubber + HIB SHI Enclave (`src/cli.py`, `src/shi_enclave.py`, `src/benchmark_engine.py`)**:
    - Streams worker outputs into DuckDB (`sg_mediator.duckdb`) with crash-safe SHA-256 `processed_files` checkpointing (`--resume`), deterministic `blake2b` patient ID pseudonymization, Singapore PHI scrubbing (`NRIC/FIN`, SMC `MCR`, SG `Postal`, `+65 Phone`, `Date`, `Email`), and HIB Sensitive Health Information enclave gating.
+6. **OHDSI OMOP CDM v5.4 Harmonizer Skill & OMOPHub MCP (`antigravity_kit/skills/sg-omop-cdm-harmonizer/`, `antigravity_kit/mcp_servers/`)**:
+   - **128-Concept Offline OHDSI Crosswalk (`sg_omop_cdm_crosswalk.csv`)**: Maps all 128 SG-MEDIATOR concepts (`SNOMED CT-SG`, `ICD-10-AM`, `ACHI`, `MOH TOSP` `1A`–`7C`, `Nutri-Grade`, `Healthier SG`, `CHAS`) to standard OHDSI Athena `omop_concept_id`, `omop_domain_id`, `target_cdm_table`, and `SG_MOH_TOSP` / `SG_MOH_SDOH` `source_to_concept_map` entries with zero changes to `src/`.
+   - **Assertion-Safe OMOP v5.4 DuckDB Exporter (`omophub_bridge.py`)**: Exports `sg_mediator_extracted_concepts.csv` or `sg_mediator.duckdb` into `omop_person`, `omop_condition_occurrence`, `omop_procedure_occurrence`, `omop_drug_exposure`, `omop_measurement`, `omop_observation`, `omop_note_nlp`, and `omop_source_to_concept_map` while suppressing longitudinal `COPY_PASTE` duplicates, routing planned `CONCEPT_PCI_STAGED` to `omop_observation` (`4275495`), and gating `SHI_Restricted` rows.
+   - **Dual MCP Integration (`sg-clinical-router-mcp` v1.3.0 + `@omophub/omophub-mcp`)**: Exposes `resolve_sg_omop_concept`, `export_sg_mediator_to_omop_cdm`, and OMOP-enriched `evaluate_ami_pci_stratification` alongside outbound DLP-guarded OMOPHub REST v1 (`https://api.omophub.com/v1`) and `@omophub/omophub-mcp` configuration.
 
 ## Validated CPU Scale & Memory Ceilings
 
@@ -62,11 +66,12 @@ sg_mediator/
 │   ├── shi_enclave.py                  # Singapore HIB Sensitive Health Information SHA-256 enclave gate
 │   └── benchmark_engine.py             # Local evaluator & hardened SG PHI-redacted reprompt exporter
 ├── tests/                              # 26-test TDD suite (VQ, sections/OCR/Parquet, PHI/TOSP, Tier-2.5, ECG/DICOM/resume, Tier-5)
+├── .agents/skills/sg-omop-cdm-harmonizer/ # Workspace-discovered OHDSI OMOP CDM v5.4 skill & bridge
 ├── antigravity_kit/
 │   ├── mcp_servers/
-│   │   ├── mcp_config.json             # MCP server configuration for Antigravity IDE
-│   │   └── sg_clinical_router_mcp.py   # Federated Clinical Router MCP (5th/4th UDMI, MOH TOSP, PubMed, UMLS)
-│   └── skills/                         # Antigravity workspace skills
+│   │   ├── mcp_config.json             # MCP config (sg-clinical-router-mcp v1.3.0 + @omophub/omophub-mcp)
+│   │   └── sg_clinical_router_mcp.py   # Federated Clinical Router MCP (5th/4th UDMI, MOH TOSP, HSA, OMOP CDM)
+│   └── skills/                         # Antigravity skills (including sg-omop-cdm-harmonizer + 128-concept OMOP map)
 └── sample_inbox/                       # Synthetic multimodal test cases + gold_labels.csv
 ```
 
@@ -83,4 +88,8 @@ sg_mediator/
    ```cmd
    benchmark_local.bat sample_inbox sample_inbox\gold_labels.csv output_benchmark
    ```
-5. *(Optional, 16 GB workstations)* To enable Tier-5 local LLM arbitration on hedged sentences, run `setup_tier5_ollama.bat` once on an internet-connected PC before copying the bundle, then launch loopback Ollama with `OLLAMA_NUM_PARALLEL=1` prior to running `16gb` mode.
+5. *(Optional)* Export extracted concepts into compliant **OHDSI OMOP CDM v5.4** DuckDB tables offline:
+   ```cmd
+   runtime\python\python.exe antigravity_kit\skills\sg-omop-cdm-harmonizer\scripts\omophub_bridge.py export --input output_results\sg_mediator.duckdb --output-duckdb output_results\omop_cdm.duckdb
+   ```
+6. *(Optional, 16 GB workstations)* Extract `sg_mediator_tier5_llm_addon_x64.zip` into the same `sg_mediator\` root (or run `setup_tier5_llamacli.bat` / `setup_tier5_ollama.bat` once on an online PC) to enable offline Tier-5 `Qwen2.5-3B-Instruct-Q4_K_M` arbitration on hedged clinical mentions in `16gb` mode.

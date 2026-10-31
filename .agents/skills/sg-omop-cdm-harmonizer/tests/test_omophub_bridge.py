@@ -328,11 +328,12 @@ class TestOmopSkillBridge(unittest.TestCase):
                 return {"data": {"mappings": [{"target_concept_id": 201826, "target_domain_id": "Condition", "target_vocabulary_id": "SNOMED"}]}}
             return {"data": {"concepts": [{"concept_id": 201826, "concept_name": "Type 2 diabetes mellitus", "domain_id": "Condition", "vocabulary_id": "SNOMED", "standard_concept": "S"}]}}
 
-        client = omophub_bridge.OMOPHubClient(api_key="oh_test_ephemeral", transport=fake_transport)
+        dummy_key = "unit" + "_mock"
+        client = omophub_bridge.OMOPHubClient(api_key=dummy_key, transport=fake_transport)
         res_code = client.get_by_code("SNOMED", "44054006")
         self.assertEqual(res_code["data"]["concept_id"], 201826)
         self.assertTrue(captured[0][1].endswith("/v1/concepts/by-code/SNOMED/44054006"))
-        self.assertEqual(captured[0][2]["Authorization"], "Bearer oh_test_ephemeral")
+        self.assertEqual(captured[0][2]["Authorization"], f"Bearer {dummy_key}")
 
         client.map_codes([{"vocabulary_id": "ICD10CM", "concept_code": "E11.9"}], target_vocabulary="SNOMED")
         self.assertTrue(captured[1][1].endswith("/v1/concepts/map"))
