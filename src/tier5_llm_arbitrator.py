@@ -125,10 +125,15 @@ class Tier5Arbitrator:
             return self._parse(json.loads(resp.read().decode("utf-8")).get("response", ""))
 
     def _ask_llama_cli(self, prompt: str) -> Optional[str]:
+        exe = self.llama_cli
+        if exe.name.lower() == "llama-cli.exe":
+            comp_exe = exe.parent / "llama-completion.exe"
+            if comp_exe.exists():
+                exe = comp_exe
         proc = subprocess.run(
             [
-                str(self.llama_cli), "-m", str(self.gguf_path), "-p", prompt,
-                "-n", "6", "--temp", "0", "-c", "2048", "-t", "2", "--no-display-prompt",
+                str(exe), "-m", str(self.gguf_path), "-p", prompt,
+                "-n", "6", "--temp", "0", "-c", "2048", "-t", "4", "--no-display-prompt", "-no-cnv",
             ],
             capture_output=True, text=True, timeout=self.timeout_s * 3,
         )
@@ -155,20 +160,26 @@ class Tier5Arbitrator:
 
 def pack_tier5_addon_zip(root_dir: Path, out_zip: Path) -> Dict[str, Any]:
     """
-    Packages optional Tier-5 local LLM binaries (`runtime/llama`, `runtime/ollama`) and quantized
-    weights (`models_llm`) into a standalone `< 2.0 GB` zip add-on that extracts directly over `sg_mediator/`.
+    Packages optional Tier-5 local LLM binaries (`runtime/llama` preferred; else `runtime/ollama`)
+    and quantized weights (`models_llm/Qwen2.5-3B-Instruct-Q4_K_M.gguf`) into a standalone `< 2.0 GB`
+    zip add-on that extracts directly over `sg_mediator/`.
     """
-    candidate_dirs = [
-        root_dir / "runtime" / "llama",
-        root_dir / "runtime" / "ollama",
-        root_dir / "models_llm",
-    ]
+    llama_dir = root_dir / "runtime" / "llama"
+    gguf_file = root_dir / "models_llm" / "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
     files_to_pack = []
-    for d in candidate_dirs:
-        if d.exists():
-            for p in sorted(d.rglob("*")):
-                if p.is_file():
-                    files_to_pack.append(p)
+
+    if llama_dir.exists() and gguf_file.exists():
+        # Prefer zero-socket llama-cli + single GGUF so archive stays strictly < 2.0 GiB
+        for p in sorted(llama_dir.rglob("*")):
+            if p.is_file():
+                files_to_pack.append(p)
+        files_to_pack.append(gguf_file)
+    else:
+        for d in (llama_dir, root_dir / "runtime" / "ollama", root_dir / "models_llm"):
+            if d.exists():
+                for p in sorted(d.rglob("*")):
+                    if p.is_file():
+                        files_to_pack.append(p)
 
     if not files_to_pack:
         raise FileNotFoundError(
