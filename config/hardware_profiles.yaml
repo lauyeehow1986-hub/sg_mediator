@@ -23,4 +23,5 @@ profiles:
     use_mmap_weights: true
     dicom_lazy_slice_streaming: true
     enable_tier5_llm_arbitrator: true
-    tier5_gguf_model: "models_onnx_int8/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
+    tier5_ollama_model: "qwen2.5:3b-instruct-q4_K_M"
+    tier5_gguf_model: "models_llm/Qwen2.5-3B-Instruct-Q4_K_M.gguf"

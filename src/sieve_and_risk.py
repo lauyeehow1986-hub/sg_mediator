@@ -26,6 +26,16 @@ class ClinicalSieveAndRiskEngine:
         with rules_yaml_path.open("r", encoding="utf-8") as f:
             self.rules = yaml.safe_load(f)
         self.semantic = semantic_layer
+        # Precompile synonym and SDOH boundary patterns (re's internal 512-entry cache thrashes at 200+ patterns)
+        self._syn_re: Dict[str, Any] = {
+            syn: re.compile(rf"(?<![a-z0-9]){re.escape(syn)}(?![a-z0-9])")
+            for syn in self.semantic.synonym_to_code
+        }
+        self._sdoh_compiled: List[Tuple[str, Any, str]] = [
+            (pat.lower(), re.compile(rf"(?<![a-z0-9]){re.escape(pat.lower())}(?![a-z0-9])"), group_cfg["code"])
+            for group_cfg in self.rules.get("singapore_policy_and_sdoh_patterns", {}).values()
+            for pat in group_cfg.get("patterns", [])
+        ]
         # Optional Tier-5 local LLM arbitrator (16 GB profile only); None => purely deterministic
         self.arbitrator = arbitrator
         self.hedge_cues = self.rules.get("tier5_arbitration", {}).get("hedge_cues", [])
@@ -100,9 +110,14 @@ class ClinicalSieveAndRiskEngine:
             prov = seg_info["provenance"]
             t_status = seg_info["temporal_status"]
 
-            # 1A. Match ontology synonyms
+            # 1A. Match ontology synonyms (fast C-level substring gate before boundary regex)
             for syn, c_code in self.semantic.synonym_to_code.items():
-                m_syn = re.search(rf"(?<![a-z0-9]){re.escape(syn)}(?![a-z0-9])", seg_lower)
+                if syn not in seg_lower:
+                    continue
+                pat = self._syn_re.get(syn)
+                if pat is None:
+                    pat = self._syn_re[syn] = re.compile(rf"(?<![a-z0-9]){re.escape(syn)}(?![a-z0-9])")
+                m_syn = pat.search(seg_lower)
                 if m_syn:
                     idx = m_syn.start()
                     assertion = self._detect_assertion_status(seg_lower, idx, t_status, concept_hint=syn)
@@ -124,13 +139,14 @@ class ClinicalSieveAndRiskEngine:
                             )
 
             # 1C. Match Singapore Policy & SDOH patterns (Nutri-Grade, Healthier SG, CHAS, HDB, FDW)
-            for _group_name, group_cfg in self.rules.get("singapore_policy_and_sdoh_patterns", {}).items():
-                for pat in group_cfg.get("patterns", []):
-                    m_pat = re.search(rf"(?<![a-z0-9]){re.escape(pat)}(?![a-z0-9])", seg_lower)
-                    if m_pat:
-                        idx = m_pat.start()
-                        assertion = self._detect_assertion_status(seg_lower, idx, t_status)
-                        _add_concept(group_cfg["code"], "SG_POLICY_SDOH_SIEVE", assertion, prov, seg_text[:140])
+            for pat_lower, pat_re, s_code in self._sdoh_compiled:
+                if pat_lower not in seg_lower:
+                    continue
+                m_pat = pat_re.search(seg_lower)
+                if m_pat:
+                    idx = m_pat.start()
+                    assertion = self._detect_assertion_status(seg_lower, idx, t_status)
+                    _add_concept(s_code, "SG_POLICY_SDOH_SIEVE", assertion, prov, seg_text[:140])
 
             # 1D. Match Genomics & Pharmacogenomics (HLA-B*15:02, HLA-B*58:01, CYP2C19, EGFR)
             for variant_pat, var_cfg in self.rules.get("genomic_and_pgx_rules", {}).items():

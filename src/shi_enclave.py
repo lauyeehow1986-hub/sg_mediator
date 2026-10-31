@@ -11,10 +11,12 @@ from typing import Dict, List, Tuple, Any
 
 
 class SHIEnclaveGate:
-    def __init__(self, output_dir: Path, unlock_shi: bool = False, shi_reason: str = ""):
+    def __init__(self, output_dir: Path, unlock_shi: bool = False, shi_reason: str = "", defer_writes: bool = False):
         self.output_dir = output_dir
         self.unlock_shi = unlock_shi
         self.shi_reason = shi_reason.strip()
+        self.defer_writes = defer_writes
+        self.pending: List[Tuple[str, str]] = []
         self.enclave_file = output_dir / "shi_enclave_restricted.jsonl"
         self.audit_log_file = output_dir / "shi_access_audit.log"
 
@@ -71,7 +73,6 @@ class SHIEnclaveGate:
         return safe_concepts, shi_count
 
     def _write_enclave_record(self, patient_id: str, visit_no: str, item: Dict[str, Any]):
-        self.output_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now(timezone.utc).isoformat()
         payload = {
             "timestamp_utc": ts,
@@ -83,10 +84,24 @@ class SHIEnclaveGate:
         }
         line = json.dumps(payload, ensure_ascii=False)
         digest = hashlib.sha256(line.encode("utf-8")).hexdigest()
+        audit = (
+            f"{ts} | patient={patient_id} | visit={visit_no} | code={item.get('concept_code')} "
+            f"| unlocked={bool(self.unlock_shi and self.shi_reason)} | sha256={digest}\n"
+        )
+        entry = (line, audit)
+        if self.defer_writes:
+            # Worker processes queue entries; the parent flushes them sequentially (no interleaved appends)
+            self.pending.append(entry)
+        else:
+            self.flush_entries([entry])
+
+    def flush_entries(self, entries: List[Tuple[str, str]]):
+        if not entries:
+            return
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         with self.enclave_file.open("a", encoding="utf-8") as f:
-            f.write(line + "\n")
+            for line, _ in entries:
+                f.write(line + "\n")
         with self.audit_log_file.open("a", encoding="utf-8") as f:
-            f.write(
-                f"{ts} | patient={patient_id} | visit={visit_no} | code={item.get('concept_code')} "
-                f"| unlocked={bool(self.unlock_shi and self.shi_reason)} | sha256={digest}\n"
-            )
+            for _, audit in entries:
+                f.write(audit)

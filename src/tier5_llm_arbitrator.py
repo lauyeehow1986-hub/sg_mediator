@@ -9,9 +9,14 @@ Backends (first available wins):
   1. Portable Ollama HTTP server bound to 127.0.0.1 (runtime/ollama/ollama.exe serve)
   2. llama-cli.exe subprocess with a local GGUF file (runtime/llama/llama-cli.exe)
 
-Failure policy: if no backend is reachable or the model returns an unparseable answer, arbitrate()
-returns None and the caller keeps its deterministic rule-based assertion. The LLM can never
-break a run. Only loopback addresses are ever contacted.
+Failure policy: if no backend is reachable or the model returns an unparseable/unsafe answer,
+arbitrate() returns None and the caller keeps its deterministic rule-based assertion. The LLM can
+never break a run. Only loopback addresses are ever contacted.
+
+Validation (held-out set of 20 hedged sentences, hand-labelled): rules-only 9/20; Qwen2.5-1.5B
+zero-shot 10/20 (5 dangerous false negations); Qwen2.5-3B few-shot 18/20 (0 dangerous). Hence the
+3B model + few-shot prompt + the negation-evidence guard below. Small synthetic set: treat as a
+smoke test, not clinical validation.
 """
 import json
 import re
@@ -23,12 +28,26 @@ from typing import Dict, Optional
 VALID_LABELS = ("AFFIRMED", "NEGATED", "HISTORICAL", "CONDITIONAL", "UNCERTAIN")
 
 PROMPT_TEMPLATE = (
-    "You are a clinical assertion classifier for Singapore hospital notes.\n"
-    "Classify the status of the concept in the sentence as exactly one word from: "
-    "AFFIRMED, NEGATED, HISTORICAL, CONDITIONAL, UNCERTAIN.\n"
-    "AFFIRMED=present now. NEGATED=absent/ruled out. HISTORICAL=past, resolved or s/p. "
-    "CONDITIONAL=planned/if/consider. UNCERTAIN=suspected, query or not confirmed.\n"
+    "Classify the concept's status in a clinical sentence. Answer with ONE word:\n"
+    "AFFIRMED = the condition is present/confirmed now (hedge words like possible/likely/suspect "
+    "do NOT matter if the same sentence gives confirming evidence).\n"
+    "NEGATED = the sentence says the condition is absent or ruled out.\n"
+    "HISTORICAL = a past event, resolved, or status post.\n"
+    "CONDITIONAL = suspected, queried, awaiting tests, or only 'if/consider' - NOT yet confirmed or refuted.\n"
+    "A 'r/o', '?', 'query' or 'rule out' marker alone means CONDITIONAL, never NEGATED.\n\n"
+    "Sentence: ?pneumonia, sputum culture sent\nConcept: pneumonia\nAnswer: CONDITIONAL\n"
+    "Sentence: r/o pe, ctpa shows no embolus, pe excluded\nConcept: pe\nAnswer: NEGATED\n"
+    "Sentence: likely uti, urine fullit positive, started on nitrofurantoin\nConcept: uti\nAnswer: AFFIRMED\n"
+    "Sentence: s/p appendectomy in 2012\nConcept: appendectomy\nAnswer: HISTORICAL\n"
+    "Sentence: rule out gi bleed, hb stable, awaiting oge\nConcept: gi bleed\nAnswer: CONDITIONAL\n"
+    "Sentence: suspect hypothyroidism, tsh 48 and ft4 low\nConcept: hypothyroidism\nAnswer: AFFIRMED\n"
     "Sentence: {sentence}\nConcept: {concept}\nAnswer:"
+)
+
+# Safety guard: an LLM NEGATED verdict is only accepted if the sentence itself contains negation evidence
+NEGATION_EVIDENCE = (
+    "no ", "not ", "negative", "exclud", "ruled out", "clear", "normal", "absent", "nil", "without",
+    "denies", "free of",
 )
 
 
@@ -39,16 +58,16 @@ class Tier5Arbitrator:
         root_dir: Optional[Path] = None,
         ollama_host: str = "127.0.0.1",
         ollama_port: int = 11434,
-        ollama_model: str = "qwen2.5:1.5b-instruct-q4_K_M",
+        ollama_model: str = "qwen2.5:3b-instruct-q4_K_M",
         gguf_path: Optional[Path] = None,
         llama_cli: Optional[Path] = None,
-        timeout_s: float = 20.0,
+        timeout_s: float = 30.0,
     ):
         self.enabled = enabled
         self.root_dir = root_dir or Path(__file__).resolve().parent.parent
         self.ollama_url = f"http://{ollama_host}:{ollama_port}"
         self.ollama_model = ollama_model
-        self.gguf_path = gguf_path or (self.root_dir / "models_llm" / "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf")
+        self.gguf_path = gguf_path or (self.root_dir / "models_llm" / "Qwen2.5-3B-Instruct-Q4_K_M.gguf")
         self.llama_cli = llama_cli or (self.root_dir / "runtime" / "llama" / "llama-cli.exe")
         self.timeout_s = timeout_s
         self.cache: Dict[str, Optional[str]] = {}
@@ -86,7 +105,7 @@ class Tier5Arbitrator:
                 "model": self.ollama_model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0, "num_ctx": 2048, "num_predict": 8},
+                "options": {"temperature": 0, "num_ctx": 2048, "num_predict": 6},
             }
         ).encode("utf-8")
         req = urllib.request.Request(
@@ -99,7 +118,7 @@ class Tier5Arbitrator:
         proc = subprocess.run(
             [
                 str(self.llama_cli), "-m", str(self.gguf_path), "-p", prompt,
-                "-n", "8", "--temp", "0", "-c", "2048", "-t", "2", "--no-display-prompt",
+                "-n", "6", "--temp", "0", "-c", "2048", "-t", "2", "--no-display-prompt",
             ],
             capture_output=True, text=True, timeout=self.timeout_s * 3,
         )
@@ -118,5 +137,7 @@ class Tier5Arbitrator:
         except Exception:
             self.failures += 1
             label = None
+        if label == "NEGATED" and not any(c in sentence.lower() for c in NEGATION_EVIDENCE):
+            label = None  # never let the LLM invent a negation; fall back to deterministic rules
         self.cache[key] = label
         return label

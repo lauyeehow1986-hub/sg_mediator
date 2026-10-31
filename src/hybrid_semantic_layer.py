@@ -1,35 +1,36 @@
 """
 SG-MEDIATOR Dual-Head Hybrid Semantic Layer:
 - Head 1: Open-Vocabulary Discrete Neural Interlingua VQ Codebook Tokenizer (T: X -> [K=16384])
-  inspired by MahmoodLab's MEDIATOR (arXiv:2610.27047). Uses deterministic character/word n-gram
-  random projection + vector quantization when offline ONNX encoder weights are not yet attached,
-  or ONNX Runtime INT8 encoder when present in models_onnx_int8/.
-- Head 2: Deterministic & Fuzzy Multi-Ontology Crosswalk (UMLS CUI, SNOMED CT-SG, ICD-10-AM,
+  inspired by MahmoodLab's MEDIATOR (arXiv:2610.27047). Uses an INT8 ONNX biomedical concept
+  encoder (`SapBERT-from-PubMedBERT-fulltext`, UMLS self-aligned `[CLS]` embeddings) projected into
+  a mean-centered, variance-balanced 128-D spherical latent space and quantized via a trained
+  K=16,384 centroid codebook (`vq_codebook_16384.npz`) with seeded ontology prototype anchoring.
+  Falls back deterministically to character-trigram hashing only if offline model files are absent.
+- Head 2: Deterministic & Semantic Multi-Ontology Crosswalk (UMLS CUI, SNOMED CT-SG, ICD-10-AM,
   ACHI, and Singapore MOH TOSP 1A-7C surgical codes).
 """
 import csv
 import hashlib
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any, Tuple
 import numpy as np
 
 
 class OnnxPhraseEncoder:
-    """INT8 ONNX sentence encoder (MiniLM-L6) -> mean-pool -> L2 -> orthonormal projection -> 14 sign bits.
+    """INT8 ONNX SapBERT biomedical encoder -> [CLS] L2 -> centered 128-D PCA -> K=16384 VQ lookup."""
 
-    The 14-bit sign code indexes the shared K=16384 discrete codebook (random-hyperplane VQ over
-    real semantic embeddings, so paraphrases land in the same or neighbouring buckets). This is NOT a
-    learned MEDIATOR codebook; it is a fixed, reproducible quantizer over an off-the-shelf encoder.
-    Loaded lazily with ORT thread limits from the 8gb/16gb profile; returns None if weights are absent.
-    """
-
-    def __init__(self, model_dir: Path, bits: int = 14, seed: int = 20261029):
+    def __init__(self, model_dir: Path):
         self.session = None
         self.tokenizer = None
-        self.bits = bits
+        self.mean: Optional[np.ndarray] = None
+        self.proj: Optional[np.ndarray] = None
+        self.centroids: Optional[np.ndarray] = None
+        self.anchor_index_to_code: Dict[int, str] = {}
+
         model_path = model_dir / "model_quantized.onnx"
         tok_path = model_dir / "tokenizer.json"
-        if not (model_path.exists() and tok_path.exists()):
+        cb_path = model_dir / "vq_codebook_16384.npz"
+        if not (model_path.exists() and tok_path.exists() and cb_path.exists()):
             return
         try:
             import os
@@ -40,22 +41,37 @@ class OnnxPhraseEncoder:
             so.intra_op_num_threads = int(os.environ.get("ORT_INTRA_OP_NUM_THREADS", "1"))
             so.inter_op_num_threads = 1
             so.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+            so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
             self.session = ort.InferenceSession(str(model_path), so, providers=["CPUExecutionProvider"])
             self.input_names = {i.name for i in self.session.get_inputs()}
             self.tokenizer = Tokenizer.from_file(str(tok_path))
-            self.tokenizer.enable_truncation(max_length=64)
-            self.tokenizer.enable_padding()
-            rng = np.random.default_rng(seed)
-            q, _ = np.linalg.qr(rng.standard_normal((384, 384)).astype(np.float32))
-            self.projection = q[:, :bits].astype(np.float32)  # orthonormal columns
+            self.tokenizer.enable_truncation(max_length=32)
+            self.tokenizer.no_padding()
+
+            with np.load(cb_path, allow_pickle=False) as cb:
+                self.mean = cb["mean"].astype(np.float32)
+                self.proj = cb["proj"].astype(np.float32)
+                raw_c = cb["centroids"].astype(np.float32)
+                norms = np.maximum(np.linalg.norm(raw_c, axis=1, keepdims=True), 1e-9)
+                self.centroids = (raw_c / norms).astype(np.float32)
+                if "anchor_indices" in cb and "anchor_codes" in cb:
+                    for idx, code in zip(cb["anchor_indices"].tolist(), cb["anchor_codes"].tolist()):
+                        self.anchor_index_to_code[int(idx)] = str(code)
         except Exception:
             self.session = None
+            self.centroids = None
 
     @property
     def available(self) -> bool:
-        return self.session is not None
+        return self.session is not None and self.centroids is not None
 
-    def bucket(self, phrase: str) -> Optional[int]:
+    @property
+    def codebook_shape(self) -> Optional[Tuple[int, int]]:
+        if self.centroids is None:
+            return None
+        return (int(self.centroids.shape[0]), int(self.centroids.shape[1]))
+
+    def embed_projected(self, phrase: str) -> Optional[np.ndarray]:
         if not self.available:
             return None
         enc = self.tokenizer.encode(phrase)
@@ -64,26 +80,47 @@ class OnnxPhraseEncoder:
         feeds = {"input_ids": ids, "attention_mask": mask}
         if "token_type_ids" in self.input_names:
             feeds["token_type_ids"] = np.zeros_like(ids)
-        hidden = self.session.run(None, feeds)[0]  # (1, T, 384)
-        m = mask[..., None].astype(np.float32)
-        vec = (hidden * m).sum(axis=1) / np.maximum(m.sum(axis=1), 1.0)
-        vec = vec[0]
-        vec = vec / max(float(np.linalg.norm(vec)), 1e-9)
-        code = (vec @ self.projection) >= 0
-        return int("".join("1" if b else "0" for b in code), 2) % (1 << self.bits)
+        hidden = self.session.run(None, feeds)[0]  # (1, T, 768)
+        cls_vec = hidden[0, 0].astype(np.float32)
+        cls_vec = cls_vec / max(float(np.linalg.norm(cls_vec)), 1e-9)
+        z = (cls_vec - self.mean) @ self.proj
+        z = z / max(float(np.linalg.norm(z)), 1e-9)
+        return z.astype(np.float32)
+
+    def quantize(self, phrase: str) -> Optional[Tuple[int, float]]:
+        z = self.embed_projected(phrase)
+        if z is None:
+            return None
+        sims = self.centroids @ z
+        best_idx = int(np.argmax(sims))
+        return best_idx, float(sims[best_idx])
+
+    def bucket(self, phrase: str) -> Optional[int]:
+        res = self.quantize(phrase)
+        return res[0] if res is not None else None
 
 
 class HybridSemanticLayer:
-    def __init__(self, ontology_csv_path: Path, codebook_size: int = 16384, dim: int = 128,
-                 model_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        ontology_csv_path: Path,
+        codebook_size: int = 16384,
+        dim: int = 128,
+        model_dir: Optional[Path] = None,
+    ):
         self.codebook_size = codebook_size
         self.dim = dim
         self.concepts_by_code: Dict[str, Dict[str, Any]] = {}
         self.synonym_to_code: Dict[str, str] = {}
+        self._vq_cache: Dict[str, str] = {}
         self._load_ontology_seed(ontology_csv_path)
-        model_dir = model_dir or (Path(__file__).resolve().parent.parent / "models_onnx_int8" / "minilm_l6_int8")
+        model_dir = model_dir or (
+            Path(__file__).resolve().parent.parent / "models_onnx_int8" / "sapbert_pubmedbert_int8"
+        )
         self.encoder = OnnxPhraseEncoder(model_dir)
-        self.encoder_backend = "onnx_int8_minilm" if self.encoder.available else "hash_trigram_fallback"
+        self.encoder_backend = (
+            "onnx_int8_sapbert_vq16384" if self.encoder.available else "hash_trigram_fallback"
+        )
 
     def _load_ontology_seed(self, csv_path: Path):
         if not csv_path.exists():
@@ -103,7 +140,8 @@ class HybridSemanticLayer:
         """
         Maps any clinical phrase into the discrete VQ codebook [K=16384].
         If aligned to a seeded concept cluster, returns its canonical VQ prototype ID;
-        otherwise computes a deterministic L2-normalized n-gram projection to the nearest VQ bucket.
+        otherwise encodes with INT8 SapBERT and performs nearest-centroid lookup over K=16,384
+        unit-norm biomedical centroids (or deterministic char-trigram fallback if offline weights absent).
         """
         if known_concept_code and known_concept_code in self.concepts_by_code:
             return self.concepts_by_code[known_concept_code]["vq_token_id"]
@@ -113,10 +151,19 @@ class HybridSemanticLayer:
             c_code = self.synonym_to_code[norm]
             return self.concepts_by_code[c_code]["vq_token_id"]
 
-        # Preferred: real INT8 ONNX encoder -> orthonormal projection -> discrete bucket
+        cached = self._vq_cache.get(norm)
+        if cached is not None:
+            return cached
+
+        if len(self._vq_cache) >= 16384:
+            self._vq_cache.clear()
+
+        # Primary: INT8 ONNX SapBERT -> 128-D centered PCA -> nearest K=16384 centroid
         onnx_bucket = self.encoder.bucket(norm)
         if onnx_bucket is not None:
-            return f"VQ_{onnx_bucket % self.codebook_size:05d}"
+            tok = f"VQ_{onnx_bucket % self.codebook_size:05d}"
+            self._vq_cache[norm] = tok
+            return tok
 
         # Fallback (weights absent): deterministic char-trigram projection into [0, K-1]
         vec = np.zeros(self.dim, dtype=np.float32)
@@ -130,10 +177,11 @@ class HybridSemanticLayer:
         norm_val = float(np.linalg.norm(vec))
         if norm_val > 0:
             vec /= norm_val
-        # Hash quantized direction to discrete codebook ID [1..K]
         q_bits = "".join("1" if x >= 0 else "0" for x in vec[:14])
         bucket = int(q_bits, 2) % self.codebook_size
-        return f"VQ_{bucket:05d}"
+        tok = f"VQ_{bucket:05d}"
+        self._vq_cache[norm] = tok
+        return tok
 
     def resolve_concept(
         self,
