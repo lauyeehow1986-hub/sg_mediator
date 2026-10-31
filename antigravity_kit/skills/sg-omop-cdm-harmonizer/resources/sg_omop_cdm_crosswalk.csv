@@ -1,0 +1,129 @@
+concept_code,omop_concept_id,omop_concept_name,omop_domain_id,omop_vocabulary_id,standard_concept,target_cdm_table,value_as_concept_id,local_source_vocabulary,local_source_code
+CONCEPT_DM_T2,201826,Type 2 diabetes mellitus,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,44054006
+CONCEPT_HLD,432867,Hyperlipidemia,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,55822004
+CONCEPT_HTN,320128,Essential hypertension,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,59621000
+CONCEPT_CKD,46271022,Chronic kidney disease,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,709044004
+CONCEPT_CAD_IHD,317576,Coronary arteriosclerosis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,53741008
+CONCEPT_CAD_CALCIFICATION,4024658,Coronary artery calcification,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,129573006
+CONCEPT_HFrEF,4229440,Chronic systolic heart failure,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,703272007
+CONCEPT_OBESITY_ASIAN,433736,Obesity,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,414916001
+CONCEPT_PCI_STENT,4203772,Percutaneous coronary intervention,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD701H
+CONCEPT_CABG,4336464,Coronary artery bypass graft,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD808H
+CONCEPT_LAP_CHOLE,4302555,Laparoscopic cholecystectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SF702G
+CONCEPT_COLONOSCOPY_POLYPECTOMY,4249893,Colonoscopy with polypectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SF208C
+CONCEPT_CATARACT_PHACO,4202905,Phacoemulsification of cataract with intraocular lens implantation,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SL805L
+CONCEPT_SGLT2I_THERAPY,45774751,empagliflozin,Drug,RxNorm,S,drug_exposure,0,SNOMED_SG,716097000
+CONCEPT_ANTIPLATELET,1322184,clopidogrel,Drug,RxNorm,S,drug_exposure,0,SNOMED_SG,372567009
+CONCEPT_ECG_AFIB,313217,Atrial fibrillation,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,49436004
+CONCEPT_ECG_LVH,4068155,Electrocardiogram left ventricular hypertrophy,Measurement,SNOMED,S,measurement,0,SNOMED_SG,164873001
+CONCEPT_ECG_ISCHEMIA,4265180,Nonspecific ST-T abnormality on electrocardiogram,Measurement,SNOMED,S,measurement,0,SNOMED_SG,428750005
+CONCEPT_PGX_HLAB1502_POS,46235648,HLA-B*15:02 allele positive,Measurement,LOINC,S,measurement,0,SNOMED_SG,713651003
+CONCEPT_PGX_HLAB5801_POS,46235650,HLA-B*58:01 allele positive,Measurement,LOINC,S,measurement,0,SNOMED_SG,713652005
+CONCEPT_PGX_CYP2C19_LOF,3012202,CYP2C19 gene targeted mutation analysis,Measurement,LOINC,S,measurement,0,SNOMED_SG,444156000
+CONCEPT_GENOMIC_EGFR_MUT,3023230,EGFR gene mutations found in blood or tissue,Measurement,LOINC,S,measurement,0,SNOMED_SG,426964009
+CONCEPT_SDOH_NUTRIGRADE_AB,4042037,Low sugar diet,Observation,SNOMED,S,observation,0,SG_MOH_SDOH,NUTRIGRADE_AB
+CONCEPT_SDOH_NUTRIGRADE_CD,4042480,High sugar intake,Observation,SNOMED,S,observation,0,SG_MOH_SDOH,NUTRIGRADE_CD
+CONCEPT_POLICY_HEALTHIER_SG,4209423,Preventive health care program enrollment,Observation,SNOMED,S,observation,0,SG_MOH_SDOH,HEALTHIER_SG
+CONCEPT_SDOH_SUBSIDY_TIER,4182707,Healthcare financial assistance recipient,Observation,SNOMED,S,observation,0,SG_MOH_SDOH,CHAS_PG_MG
+CONCEPT_SDOH_HDB_RENTAL,4074765,Lives in rented accommodation,Observation,SNOMED,S,observation,0,SG_MOH_SDOH,HDB_RENTAL_1_2RM
+CONCEPT_SDOH_FDW_CAREGIVER,40481042,Caregiver available in household,Observation,SNOMED,S,observation,0,SG_MOH_SDOH,FDW_CAREGIVER
+CONCEPT_SHI_HIV,439727,Human immunodeficiency virus infection,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,86406008
+CONCEPT_SHI_PSYCH,435783,Schizophrenia,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,74732009
+CONCEPT_SHI_SUBSTANCE,434327,Psychoactive substance abuse,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,66214007
+CONCEPT_SHI_TOP,4245003,Induced termination of pregnancy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SG705U
+CONCEPT_SHI_GENETIC,4187203,Genetic predisposition to malignant neoplasm,Observation,SNOMED,S,observation,0,SNOMED_SG,405824009
+CONCEPT_AMI,4329847,Myocardial infarction,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,57054005
+CONCEPT_AMI_STEMI,4296653,Acute ST segment elevation myocardial infarction,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,401303003
+CONCEPT_AMI_NSTEMI,444406,Acute subendocardial infarction,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,401314000
+CONCEPT_ACS_UAP,315286,Preinfarction syndrome,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,22298006
+CONCEPT_AMI_TYPE2_OTHER,45766114,Myocardial infarction type 2,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,7181000119102
+CONCEPT_PCI_PRIMARY,4203772,Percutaneous coronary intervention,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD701H
+CONCEPT_PCI_STAGED,4275495,Planned procedure,Observation,SNOMED,S,observation,4203772,SG_MOH_TOSP,SD701H
+CONCEPT_AMI_PRIMARY,4329847,Myocardial infarction,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,57054005
+CONCEPT_AMI_SECONDARY,45766114,Myocardial infarction type 2,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,7181000119102
+CONCEPT_AMI_PROCEDURAL,44782712,Myocardial infarction associated with revascularization procedure,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,703164003
+CONCEPT_MYOCARDIAL_INJURY_ACUTE,37311061,Acute myocardial injury,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,840544004
+CONCEPT_MYOCARDIAL_INJURY_CHRONIC,37311062,Chronic myocardial injury,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,840544004
+CONCEPT_HFpEF,44782718,Heart failure with normal ejection fraction,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,446221000
+CONCEPT_AORTIC_STENOSIS,314054,Aortic valve stenosis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,60573004
+CONCEPT_MITRAL_REGURG,313224,Mitral valve regurgitation,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,48724000
+CONCEPT_ATRIAL_FLUTTER,314665,Atrial flutter,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,5370000
+CONCEPT_VENTRICULAR_TACHY,4108832,Ventricular tachycardia,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,25569003
+CONCEPT_AV_BLOCK_COMPLETE,316135,Complete atrioventricular block,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,27885002
+CONCEPT_PULMONARY_EMBOLISM,440417,Pulmonary embolism,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,59282003
+CONCEPT_DVT_LOWER_LIMB,4133004,Deep venous thrombosis of lower extremity,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,128053003
+CONCEPT_PERIPHERAL_ARTERY_DIS,321052,Peripheral vascular disease,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,840580004
+CONCEPT_AORTIC_ANEURYSM_AAA,4269610,Abdominal aortic aneurysm without rupture,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,233985008
+CONCEPT_TAVI_TAVR,46273026,Transcatheter aortic valve replacement,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD715H
+CONCEPT_PACEMAKER_IMPLANT,4141640,Implantation of cardiac pacemaker,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD705H
+CONCEPT_ICD_IMPLANT,4169580,Implantation of automatic cardiac defibrillator,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD708H
+CONCEPT_CATHETER_ABLATION_AF,4288249,Catheter ablation of pulmonary vein for atrial fibrillation,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD712H
+CONCEPT_EVAR_AORTA,44783157,Endovascular repair of abdominal aortic aneurysm,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD820V
+CONCEPT_AV_FISTULA_CREATION,4019967,Creation of arteriovenous fistula for dialysis,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SD835V
+CONCEPT_OGD_BIOPSY,4291005,Esophagogastroduodenoscopy with biopsy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SF201G
+CONCEPT_ERCP_SPHINCTEROTOMY,4230167,Endoscopic retrograde cholangiopancreatography with sphincterotomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SF215G
+CONCEPT_LAP_INGUINAL_HERNIA,44808962,Laparoscopic repair of inguinal hernia,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SF710G
+CONCEPT_HEMICOLLECTOMY,4079741,Right hemicolectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SF740C
+CONCEPT_GERD_ESOPHAGITIS,318800,Gastroesophageal reflux disease with esophagitis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,235595009
+CONCEPT_PEPTIC_ULCER,4027663,Peptic ulcer,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,13200003
+CONCEPT_LIVER_CIRRHOSIS,4064161,Cirrhosis of liver,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,19943007
+CONCEPT_MASLD_NAFLD,4068343,Nonalcoholic fatty liver,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,197321007
+CONCEPT_ACUTE_PANCREATITIS,199074,Acute pancreatitis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,197456007
+CONCEPT_CHOLEDOCHOLITHIASIS,4102640,Calculus of bile duct without obstruction,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,266474003
+CONCEPT_ULCERATIVE_COLITIS,81893,Ulcerative colitis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,64766004
+CONCEPT_CROHN_DISEASE,201606,Crohn disease,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,34000006
+CONCEPT_CHRONIC_HEP_B,4281232,Chronic viral hepatitis B,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,61977001
+CONCEPT_TKR_ARTHROPLASTY,437264,Total knee replacement,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SB710K
+CONCEPT_THR_ARTHROPLASTY,4203771,Total replacement of hip,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SB705H
+CONCEPT_HIP_HEMIARTHROPLASTY,4195575,Hemiarthroplasty of hip,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SB702H
+CONCEPT_ACL_RECONSTRUCTION,4144225,Arthroscopic reconstruction of anterior cruciate ligament,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SB725K
+CONCEPT_LUMBAR_DECOMPRESSION,4236222,Lumbar laminectomy for decompression,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SB810S
+CONCEPT_CARPAL_TUNNEL_RELEASE,4146536,Decompression of median nerve in carpal tunnel,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SN702W
+CONCEPT_CRANIOTOMY_HEMATOMA,4215685,Craniotomy for evacuation of hematoma,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SN820B
+CONCEPT_KNEE_OSTEOARTHRITIS,4079750,Osteoarthritis of knee,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,239873007
+CONCEPT_OSTEOPOROSIS,80502,Osteoporosis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,64859006
+CONCEPT_GOUTY_ARTHRITIS,440674,Gout,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,90560007
+CONCEPT_RHEUMATOID_ARTHRITIS,80809,Rheumatoid arthritis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,69896004
+CONCEPT_SLE_LUPUS,257628,Systemic lupus erythematosus,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,55464009
+CONCEPT_TURP_PROSTATE,4338534,Transurethral prostatectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SU705P
+CONCEPT_URETEROSCOPY_LASER,44782942,Ureteroscopic lithotripsy with laser,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SU712U
+CONCEPT_ESWL_KIDNEY,4230404,Extracorporeal shockwave lithotripsy of renal calculus,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SU202K
+CONCEPT_LSCS_CESAREAN,4019822,Lower uterine segment cesarean section,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SG720C
+CONCEPT_LAP_HYSTERECTOMY,46272971,Total laparoscopic hysterectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SG735U
+CONCEPT_MASTECTOMY_SNB,4297955,Simple mastectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SA715B
+CONCEPT_THYROIDECTOMY,4171915,Thyroidectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SA730T
+CONCEPT_TONSILLECTOMY,4059537,Tonsillectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SE705T
+CONCEPT_FESS_SINUS,4068757,Functional endoscopic sinus surgery,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SE718S
+CONCEPT_PARS_PLANA_VITRECTOMY,4269422,Pars plana vitrectomy,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SL820V
+CONCEPT_INTRAVITREAL_ANTIVEGF,4289935,Intravitreal injection of therapeutic agent,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,SL210V
+CONCEPT_VATS_LOBECTOMY,46273080,Thoracoscopic lobectomy of lung,Procedure,SNOMED,S,procedure_occurrence,0,SG_MOH_TOSP,ST720L
+CONCEPT_ISCHEMIC_STROKE,443454,Cerebral infarction,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,422504002
+CONCEPT_TIA_TRANSIENT,373503,Transient cerebral ischemia,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,266257000
+CONCEPT_INTRACEREBRAL_HEM,376713,Cerebral hemorrhage,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,274100004
+CONCEPT_PARKINSON_DISEASE,381270,Parkinsonism,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,49049000
+CONCEPT_ALZHEIMER_DEMENTIA,378419,Alzheimer disease,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,26929004
+CONCEPT_EPILEPSY_SEIZURE,380378,Epilepsy,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,84757009
+CONCEPT_ASTHMA_BRONCHIAL,317009,Asthma,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,195967001
+CONCEPT_COPD_AIRWAY,255573,Chronic obstructive lung disease,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,13645005
+CONCEPT_OSA_SLEEP_APNEA,313459,Sleep apnea,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,78275009
+CONCEPT_BRONCHIECTASIS,254443,Bronchiectasis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,12295008
+CONCEPT_PULMONARY_TB,253954,Pulmonary tuberculosis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,154283005
+CONCEPT_DENGUE_FEVER,202298,Dengue,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,38362002
+CONCEPT_MELIOIDOSIS,4096809,Melioidosis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,240370009
+CONCEPT_SEPSIS_SHOCK,132797,Sepsis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,91302008
+CONCEPT_ACUTE_PYELONEPHRITIS,196168,Acute pyelonephritis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,36689008
+CONCEPT_HYPOTHYROIDISM,140673,Hypothyroidism,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,40930008
+CONCEPT_GRAVES_HYPERTHYROID,4179711,Graves disease,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,353295004
+CONCEPT_BPH_PROSTATE,198803,Benign prostatic hyperplasia,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,266569009
+CONCEPT_RENAL_CALCULUS,201620,Kidney stone,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,95570007
+CONCEPT_ESRD_DIALYSIS,193782,End-stage renal disease,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,46177005
+CONCEPT_GLAUCOMA_POAG,437541,Primary open angle glaucoma,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,77075001
+CONCEPT_DIABETIC_RETINOPATHY,4174977,Retinopathy due to diabetes mellitus,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,4855003
+CONCEPT_ATOPIC_DERMATITIS,133834,Atopic dermatitis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,24079001
+CONCEPT_PSORIASIS_VULGARIS,140168,Psoriasis,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,9014002
+CONCEPT_COLORECTAL_CANCER,4180790,Malignant tumor of colon,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,363406005
+CONCEPT_HEPATOCELLULAR_CA,4001171,Liver cell carcinoma,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,109841003
+CONCEPT_BREAST_CARCINOMA,4112853,Malignant tumor of breast,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,254837009
+CONCEPT_PROSTATE_CARCINOMA,4163261,Malignant tumor of prostate,Condition,SNOMED,S,condition_occurrence,0,SNOMED_SG,399068003
+CONCEPT_DOAC_ANTICOAG,40241331,apixaban,Drug,RxNorm,S,drug_exposure,0,SNOMED_SG,712778008
+CONCEPT_GLP1_RA_THERAPY,793143,semaglutide,Drug,RxNorm,S,drug_exposure,0,SNOMED_SG,418779001
