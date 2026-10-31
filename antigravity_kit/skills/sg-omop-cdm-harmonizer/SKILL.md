@@ -47,7 +47,9 @@ runtime\python\python.exe antigravity_kit\skills\sg-omop-cdm-harmonizer\scripts\
 runtime\python\python.exe antigravity_kit\skills\sg-omop-cdm-harmonizer\scripts\omophub_bridge.py search --query "Type 2 diabetes mellitus" --vocabularies SNOMED,RxNorm,LOINC
 ```
 
-Optional Zone-B MCP snippet (if desired later without modifying repo files): see `resources/omophub_mcp_snippet.json` (`npx -y @omophub/omophub-mcp` with `OMOPHUB_API_KEY` in env).
+Optional Zone-B MCP servers (`antigravity_kit/mcp_servers/mcp_config.json` & `~/.gemini/config/mcp_config.json`):
+- **`sg-clinical-router-mcp` (`C:/Python314/python.exe`)**: Exposes `resolve_sg_omop_concept` (128-concept offline Singapore TOSP/SNOMED/SDOH crosswalk + DLP-guarded live OMOPHub lookup), `export_sg_mediator_to_omop_cdm` (compliant OMOP CDM v5.4 DuckDB builder), and OMOP-enriched `evaluate_ami_pci_stratification`.
+- **`omophub` (`npx -y @omophub/omophub-mcp`)**: Official OMOPHub MCP server for full OHDSI hierarchy/ancestor traversal and FHIR terminology translation when `OMOPHUB_API_KEY` is set in environment (never pass raw clinical spans or PHI to `omophub` MCP tools).
 
 ## Rationalization Counter-Table
 

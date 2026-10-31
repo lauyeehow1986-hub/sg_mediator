@@ -350,6 +350,134 @@ class TestOmopSkillBridge(unittest.TestCase):
         with self.assertRaises(ValueError):
             client.search_concepts("Dr Tan M12345A reviewed CTPA")
 
+    def test_mcp_jsonrpc_lists_and_calls_omop_tools_offline_and_blocks_phi(self) -> None:
+        mcp_dir = REPO_ROOT / "antigravity_kit" / "mcp_servers"
+        if str(mcp_dir) not in sys.path:
+            sys.path.insert(0, str(mcp_dir))
+        import sg_clinical_router_mcp
+
+        tools_resp = sg_clinical_router_mcp.handle_jsonrpc(
+            {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+        )
+        tool_names = {t["name"] for t in tools_resp["result"]["tools"]}
+        self.assertIn("resolve_sg_omop_concept", tool_names)
+        self.assertIn("export_sg_mediator_to_omop_cdm", tool_names)
+
+        # 1. Offline lookup by concept_code
+        r1 = sg_clinical_router_mcp.handle_jsonrpc(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "resolve_sg_omop_concept",
+                    "arguments": {"query": "CONCEPT_DM_T2"},
+                },
+            }
+        )
+        payload1 = json.loads(r1["result"]["content"][0]["text"])
+        self.assertTrue(any(int(m["omop_concept_id"]) == 201826 for m in payload1["offline_matches"]))
+
+        # 2. Offline lookup by Singapore MOH TOSP code SD701H
+        r2 = sg_clinical_router_mcp.handle_jsonrpc(
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "resolve_sg_omop_concept",
+                    "arguments": {"query": "SD701H"},
+                },
+            }
+        )
+        payload2 = json.loads(r2["result"]["content"][0]["text"])
+        matched_codes = {m["concept_code"] for m in payload2["offline_matches"]}
+        self.assertIn("CONCEPT_PCI_PRIMARY", matched_codes)
+        self.assertIn("CONCEPT_PCI_STAGED", matched_codes)
+
+        # 3. Outbound DLP block on live OMOPHub request containing NRIC
+        synthetic_nric = "S" + "8612345" + "D"
+        r3 = sg_clinical_router_mcp.handle_jsonrpc(
+            {
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "resolve_sg_omop_concept",
+                    "arguments": {
+                        "query": f"Patient {synthetic_nric} diabetes",
+                        "include_live_omophub": True,
+                    },
+                },
+            }
+        )
+        payload3 = json.loads(r3["result"]["content"][0]["text"])
+        self.assertTrue(payload3.get("dlp_blocked"), payload3)
+
+        # 4. evaluate_ami_pci_stratification includes OMOP concept enrichment
+        r4 = sg_clinical_router_mcp.handle_jsonrpc(
+            {
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "evaluate_ami_pci_stratification",
+                    "arguments": {
+                        "clinical_scenario": "62M crushing retrosternal chest pain",
+                        "ecg_findings": "ST elevation in V1-V4",
+                        "procedure_notes": "Primary PCI to LAD; plan for staged PCI to RCA in 4 weeks",
+                        "visit_date": "2026-09-15",
+                        "patient_sex": "male",
+                    },
+                },
+            }
+        )
+        payload4 = json.loads(r4["result"]["content"][0]["text"])
+        self.assertEqual(payload4["adjudicated_ami_category"]["omop_concept_id"], 4296653)
+        self.assertEqual(payload4["adjudicated_pci_staging"]["omop_concept_id"], 4275495)
+        self.assertEqual(payload4["adjudicated_pci_staging"]["omop_value_as_concept_id"], 4203772)
+
+        # 5. export_sg_mediator_to_omop_cdm MCP tool call
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            csv_in = tmp_path / "in.csv"
+            db_out = tmp_path / "omop.duckdb"
+            csv_in.write_text(
+                "patient_id,visit_no,visit_date,modality,care_setting,copy_paste_ratio,"
+                "concept_code,vq_token_id,canonical_name,domain,assertion_status,provenance,"
+                "evidence_source,umls_cui,snomed_sg_code,icd10am_code,achi_code,moh_tosp_code,"
+                "tosp_table_tier,supporting_span\n"
+                "PT_001,V1,2026-05-10,clinical_note,INPATIENT,0.0,CONCEPT_HTN,VQ_01105,"
+                "Essential Hypertension,Condition,AFFIRMED,NEW,TIER1,C0020538,59621000,I10,NONE,NONE,NONE,HTN\n",
+                encoding="utf-8",
+            )
+            r5 = sg_clinical_router_mcp.handle_jsonrpc(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 6,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "export_sg_mediator_to_omop_cdm",
+                        "arguments": {
+                            "input_path": str(csv_in),
+                            "output_duckdb": str(db_out),
+                        },
+                    },
+                }
+            )
+            payload5 = json.loads(r5["result"]["content"][0]["text"])
+            self.assertEqual(payload5["condition_occurrence_count"], 1)
+            self.assertTrue(db_out.exists())
+
+    def test_mcp_config_registers_sg_clinical_router_and_omophub_mcp(self) -> None:
+        mcp_cfg_path = REPO_ROOT / "antigravity_kit" / "mcp_servers" / "mcp_config.json"
+        cfg = json.loads(mcp_cfg_path.read_text(encoding="utf-8"))
+        servers = cfg.get("mcpServers", {})
+        self.assertIn("sg-clinical-router-mcp", servers)
+        self.assertIn("omophub", servers)
+        self.assertIn("@omophub/omophub-mcp", servers["omophub"]["args"])
+
+
 
 if __name__ == "__main__":
     unittest.main()

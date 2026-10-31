@@ -8,7 +8,18 @@
       "env": {
         "PYTHONUTF8": "1",
         "PYTHONUNBUFFERED": "1",
-        "SG_AUTHORITY_PRIORITY": "MOH_TOSP_HIB,ACE_ACG,SG_SOCIETY,PUBMED,CLINICALTRIALS"
+        "SG_AUTHORITY_PRIORITY": "MOH_TOSP_HIB,ACE_ACG,SG_SOCIETY,PUBMED,CLINICALTRIALS,OHDSI_OMOP_CDM"
+      }
+    },
+    "omophub": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@omophub/omophub-mcp"
+      ],
+      "env": {
+        "OMOPHUB_API_KEY": "${OMOPHUB_API_KEY}",
+        "NODE_OPTIONS": "--use-system-ca"
       }
     }
   }

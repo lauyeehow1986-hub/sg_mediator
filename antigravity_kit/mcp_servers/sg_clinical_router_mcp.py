@@ -13,16 +13,22 @@ Acts as a Hierarchical Context-Expansion Router across:
 7. PubMed E-Utilities (NCBI) & ClinicalTrials.gov API v2 (Live HTTP query on Dev Workstation)
 8. PharmGKB / CPIC Pharmacogenomic Actionability Rules
 """
+import csv
 import json
+import os
 import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 RULES_YAML = ROOT_DIR / "config" / "sg_clinical_rules.yaml"
 ONTOLOGY_CSV = ROOT_DIR / "config" / "sg_ontology_seed.csv"
+OMOP_SKILL_DIR = ROOT_DIR / "antigravity_kit" / "skills" / "sg-omop-cdm-harmonizer"
+OMOP_SCRIPTS_DIR = OMOP_SKILL_DIR / "scripts"
+if str(OMOP_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(OMOP_SCRIPTS_DIR))
 
 # Official data.gov.sg / HSA resource identifiers
 HSA_THERAPEUTIC_PRODUCTS_RESOURCE_ID = "d_767279312753558cbf19d48344577084"
@@ -870,6 +876,9 @@ def evaluate_ami_pci_stratification(
             "billing_and_quality_notes": "Emergent/index revascularization of acute culprit lesion. Subject to hospital Door-to-Balloon (<=90 min) benchmarking.",
         })
 
+    _attach_omop_metadata(adjudicated_ami)
+    _attach_omop_metadata(pci_adjudication)
+
     return {
         "router": "sg-clinical-router-mcp",
         "tool": "evaluate_ami_pci_stratification",
@@ -891,6 +900,119 @@ def evaluate_ami_pci_stratification(
     }
 
 
+def _attach_omop_metadata(target: Dict[str, Any]) -> None:
+    concept_code = target.get("concept_code")
+    if not concept_code:
+        return
+    try:
+        import omophub_bridge
+
+        cw = omophub_bridge.load_offline_crosswalk().get(str(concept_code))
+        if cw:
+            target["omop_concept_id"] = int(cw["omop_concept_id"])
+            target["omop_domain_id"] = cw["omop_domain_id"]
+            target["omop_target_cdm_table"] = cw["target_cdm_table"]
+            target["omop_value_as_concept_id"] = int(cw.get("value_as_concept_id") or 0)
+    except Exception:
+        pass
+
+
+def resolve_sg_omop_concept(
+    query: str,
+    vocabulary_ids: Optional[List[str]] = None,
+    include_live_omophub: bool = False,
+    max_results: int = 10,
+) -> Dict[str, Any]:
+    """
+    Resolve Singapore clinical concepts, SNOMED-SG, ICD-10-AM, ACHI, MOH TOSP (1A-7C),
+    Nutri-Grade, or Healthier SG codes to standard OHDSI OMOP CDM v5.4 concept_ids.
+    Uses the 128-concept offline crosswalk first and optionally queries OMOPHub REST v1 / SDK
+    when include_live_omophub=True and OMOPHUB_API_KEY is configured, enforcing outbound DLP.
+    """
+    import omophub_bridge
+
+    clean_q = (query or "").strip()
+    if include_live_omophub:
+        try:
+            omophub_bridge.assert_dlp_safe_query(clean_q)
+        except ValueError as exc:
+            return {
+                "router": "sg-clinical-router-mcp",
+                "tool": "resolve_sg_omop_concept",
+                "dlp_blocked": True,
+                "error": str(exc),
+                "offline_matches": [],
+            }
+
+    crosswalk = omophub_bridge.load_offline_crosswalk()
+    q_low = clean_q.lower()
+    offline_matches: List[Dict[str, Any]] = []
+
+    if ONTOLOGY_CSV.exists():
+        with ONTOLOGY_CSV.open("r", encoding="utf-8", newline="") as f:
+            for row in csv.DictReader(f):
+                code = row["concept_code"]
+                cw = crosswalk.get(code, {})
+                haystack = " | ".join(
+                    [
+                        code,
+                        row.get("canonical_name", ""),
+                        row.get("snomed_sg_code", ""),
+                        row.get("icd10am_code", ""),
+                        row.get("achi_code", ""),
+                        row.get("moh_tosp_code", ""),
+                        row.get("synonyms", ""),
+                        cw.get("omop_concept_name", ""),
+                        cw.get("local_source_code", ""),
+                    ]
+                ).lower()
+                if q_low and q_low in haystack:
+                    offline_matches.append(
+                        {
+                            "concept_code": code,
+                            "vq_token_id": row.get("vq_token_id", ""),
+                            "canonical_name": row.get("canonical_name", ""),
+                            "snomed_sg_code": row.get("snomed_sg_code", ""),
+                            "icd10am_code": row.get("icd10am_code", ""),
+                            "achi_code": row.get("achi_code", ""),
+                            "moh_tosp_code": row.get("moh_tosp_code", ""),
+                            "omop_concept_id": int(cw["omop_concept_id"]) if cw else 0,
+                            "omop_concept_name": cw.get("omop_concept_name", ""),
+                            "omop_domain_id": cw.get("omop_domain_id", ""),
+                            "omop_vocabulary_id": cw.get("omop_vocabulary_id", ""),
+                            "target_cdm_table": cw.get("target_cdm_table", ""),
+                            "value_as_concept_id": int(cw.get("value_as_concept_id") or 0),
+                        }
+                    )
+                    if len(offline_matches) >= max_results:
+                        break
+
+    result: Dict[str, Any] = {
+        "router": "sg-clinical-router-mcp",
+        "tool": "resolve_sg_omop_concept",
+        "dlp_blocked": False,
+        "offline_matches": offline_matches,
+    }
+
+    api_key = os.environ.get("OMOPHUB_API_KEY", "").strip()
+    if include_live_omophub:
+        if api_key and not api_key.startswith(("YOUR_", "${")):
+            try:
+                client = omophub_bridge.OMOPHubClient(api_key=api_key)
+                vocabs = vocabulary_ids or ["SNOMED", "RxNorm", "LOINC"]
+                result["live_omophub_results"] = client.search_concepts(
+                    query=clean_q,
+                    vocabulary_ids=vocabs,
+                    page_size=max_results,
+                )
+            except Exception as exc:
+                result["live_omophub_note"] = f"OMOPHub fallback to offline crosswalk ({exc})"
+        else:
+            result["live_omophub_note"] = "OMOPHUB_API_KEY not set in environment; served from 128-concept offline crosswalk."
+
+    return result
+
+
 def handle_jsonrpc(req: Dict[str, Any]) -> Dict[str, Any]:
     method = req.get("method", "")
     req_id = req.get("id")
@@ -901,7 +1023,7 @@ def handle_jsonrpc(req: Dict[str, Any]) -> Dict[str, Any]:
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "sg-clinical-router-mcp", "version": "1.2.0"},
+                "serverInfo": {"name": "sg-clinical-router-mcp", "version": "1.3.0"},
             },
         }
     if method == "tools/list":
@@ -1019,6 +1141,44 @@ def handle_jsonrpc(req: Dict[str, Any]) -> Dict[str, Any]:
                             "required": ["device_query"],
                         },
                     },
+                    {
+                        "name": "resolve_sg_omop_concept",
+                        "description": (
+                            "Resolve Singapore clinical concepts, SNOMED-SG, ICD-10-AM, ACHI, MOH TOSP (1A-7C), "
+                            "Nutri-Grade, or Healthier SG codes into standard OHDSI OMOP CDM v5.4 concept_ids "
+                            "via the 128-concept offline crosswalk and optional DLP-guarded OMOPHub REST v1 lookup."
+                        ),
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "description": "De-identified concept code, MOH TOSP code (e.g. SD701H), SNOMED code, or canonical clinical term"},
+                                "vocabulary_ids": {"type": "array", "items": {"type": "string"}, "description": "Optional OMOPHub vocabularies (e.g. ['SNOMED', 'RxNorm', 'LOINC'])"},
+                                "include_live_omophub": {"type": "boolean", "default": False},
+                                "max_results": {"type": "integer", "default": 10},
+                            },
+                            "required": ["query"],
+                        },
+                    },
+                    {
+                        "name": "export_sg_mediator_to_omop_cdm",
+                        "description": (
+                            "Convert SG-MEDIATOR extracted concepts (CSV or sg_mediator.duckdb) into compliant "
+                            "OHDSI OMOP CDM v5.4 DuckDB tables enforcing assertion routing, longitudinal copy-paste "
+                            "deduplication, planned Staged PCI observation routing, and Singapore HIB SHI enclave gating."
+                        ),
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "input_path": {"type": "string", "description": "Path to sg_mediator_extracted_concepts.csv or sg_mediator.duckdb"},
+                                "output_duckdb": {"type": "string", "description": "Target OHDSI OMOP CDM v5.4 DuckDB file path"},
+                                "include_shi": {"type": "boolean", "default": False},
+                                "shi_reason": {"type": "string", "default": ""},
+                                "include_copy_paste": {"type": "boolean", "default": False},
+                                "include_snippets": {"type": "boolean", "default": False},
+                            },
+                            "required": ["input_path", "output_duckdb"],
+                        },
+                    },
                 ]
             },
         }
@@ -1026,6 +1186,36 @@ def handle_jsonrpc(req: Dict[str, Any]) -> Dict[str, Any]:
         params = req.get("params", {})
         tool_name = params.get("name")
         args = params.get("arguments", {})
+
+        if tool_name == "resolve_sg_omop_concept":
+            res = resolve_sg_omop_concept(
+                query=args.get("query", ""),
+                vocabulary_ids=args.get("vocabulary_ids"),
+                include_live_omophub=bool(args.get("include_live_omophub", False)),
+                max_results=int(args.get("max_results", 10)),
+            )
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {"content": [{"type": "text", "text": json.dumps(res, indent=2)}]},
+            }
+
+        if tool_name == "export_sg_mediator_to_omop_cdm":
+            import omophub_bridge
+
+            res = omophub_bridge.export_to_omop_duckdb(
+                input_path=Path(args["input_path"]),
+                output_duckdb=Path(args["output_duckdb"]),
+                include_shi=bool(args.get("include_shi", False)),
+                shi_reason=str(args.get("shi_reason", "")),
+                include_copy_paste=bool(args.get("include_copy_paste", False)),
+                include_snippets=bool(args.get("include_snippets", False)),
+            )
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {"content": [{"type": "text", "text": json.dumps(res, indent=2)}]},
+            }
 
         if tool_name == "query_hsa_therapeutic_products":
             res = query_hsa_registered_drugs_live(
